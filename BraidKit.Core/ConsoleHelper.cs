@@ -22,12 +22,16 @@ public class TempConsoleColor : IDisposable
     public void Dispose() => Console.ForegroundColor = _initialColor;
 }
 
-public class TempCancelMessage : IDisposable
+public class TempCancelAction : IDisposable
 {
     private ConsoleCancelEventHandler _handler;
-    public TempCancelMessage(string message)
+    public TempCancelAction(Action action)
     {
-        _handler = new((_, _) => Console.WriteLine(message));
+        _handler = new((_, e) =>
+        {
+            e.Cancel = true; // Cancel the cancel event
+            action();
+        });
         Console.CancelKeyPress += _handler;
     }
     public void Dispose() => Console.CancelKeyPress -= _handler;

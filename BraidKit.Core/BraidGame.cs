@@ -29,6 +29,10 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     public bool IsSteamVersion => _process.Modules[0].ModuleMemorySize == 7663616;
     public bool IsRunning => !_process.HasExited;
 
+    public GameValue<bool> InMainMenu { get; } = new(_processMemoryHandler, 0x5f6ecc);
+    public GameValue<GameMode> GameMode { get; } = new(_processMemoryHandler, 0x5f92c0);
+    public bool InPuzzleAssemblyScreen => GameMode == Core.GameMode.PuzzleAssemblyScreen;
+
     private static readonly byte[] _cameraEnabledBytes = [0xf3, 0x0f, 0x11];
     private static readonly byte[] _cameraDisabledBytes = [0x90, 0x90, 0x90];
 
@@ -117,7 +121,7 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
 
     public void AddWatermark() => _processMemoryHandler.Write(0x00507bda, 0x00579e10);
 
-    private const int _entityManagerPointerAddr = 0x5f6de8;
+    private const int _entityManagerPointerAddr = 0x5f6dec; // Entity manager at 0x5f6de8 can temporarily change, but 0x5f6dec seems stable
     public List<Entity> GetEntities()
     {
         var entityManagerAddr = _processMemoryHandler.Read<int>(_entityManagerPointerAddr);
@@ -153,4 +157,13 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
                 // TODO: Write<byte>?
                 _processMemoryHandler.Write(_initialPuzzlePieceAddr + _worldPuzzlePieceOffset * world + _individualPuzzlePieceOffset * piece, 0);
     }
+}
+
+public enum GameMode
+{
+    TitleScreen = 0,
+    PuzzleAssemblyScreen = 1,
+    Game = 2,
+    CallServer = 3,
+    EditAnimations = 4,
 }

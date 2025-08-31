@@ -2,10 +2,10 @@
 
 namespace BraidKit.Core.MemoryAccess;
 
-internal class AutoArray<T>(ProcessMemoryHandler _processMemoryHandler, nint _addr) where T : unmanaged
+internal class AutoArray<T>(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr) where T : unmanaged
 {
     public int GetItemCount() => _processMemoryHandler.Read<int>(_addr);
-    private nint GetFirstItemAddr() => _processMemoryHandler.Read<int>(_addr + sizeof(int) * 2);
+    private IntPtr GetFirstItemAddr() => _processMemoryHandler.Read<int>(_addr + sizeof(int) * 2);
     private int GetItemSize() => ProcessMemoryHandler.GetBlittableSize<T>();
 
     public T[] GetAllItems()

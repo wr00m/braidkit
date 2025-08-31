@@ -12,6 +12,7 @@ internal static partial class Commands
             // TODO: Aliases should be single-letter
             new Option<int?>("--world", "-w") { Description = "Only use timer for this world" },
             new Option<int?>("--level", "-l") { Description = "Only use timer for this level" },
+            new Option<bool>("--live", "-t") { Description = "Use live timer" },
             new Option<bool>("--reset-pieces", "-rp") { Description = "Reset ALL pieces on door entry" },
             new Option<bool>("--high-precision", "-hp") { Description = "Increases system timer resolution" },
         }
@@ -19,19 +20,21 @@ internal static partial class Commands
         {
             var world = parseResult.GetValue<int?>("--world");
             var level = parseResult.GetValue<int?>("--level");
+            var live = parseResult.GetValue<bool>("--live");
             var resetPieces = parseResult.GetValue<bool>("--reset-pieces");
             var highPrecision = parseResult.GetValue<bool>("--high-precision");
+            var cancel = false;
 
-            Console.WriteLine("IL timer enabled. Press Ctrl+C to exit.");
-            using var cancelMessage = new TempCancelMessage("IL timer stopped"); // Shown when Ctrl+C is pressed
+            Console.WriteLine("IL timer enabled. Press Ctrl+C to exit.\n");
+            using var _ = new TempCancelAction(() => cancel = true); // When Ctrl+C is pressed
 
             using var highPrecisionTimer = highPrecision ? new HighPrecisionTimer(10) : null;
-            var ilTimer = new IlTimer(braidGame, world, level, resetPieces);
+            var ilTimer = new IlTimer(braidGame, world, level, resetPieces, live);
 
-            while (braidGame.IsRunning)
+            while (!cancel && braidGame.IsRunning)
                 SpinWait.SpinUntil(() => ilTimer.Tick(), 5);
 
-            ConsoleHelper.WriteWarning("IL timer stopped because game was closed");
+            ConsoleHelper.WriteWarning("\rIL timer stopped");
         });
 }
 
@@ -41,19 +44,24 @@ internal class IlTimer
     private readonly int? _onlyWorld;
     private readonly int? _onlyLevel;
     private readonly bool _resetPieces;
-    private bool _stopped;
+    private readonly bool _liveTimer;
     private int _currentWorld;
     private int _currentLevel;
+    private bool _stopped;
+    private bool _paused;
     private int _frameIndex;
     private int _levelFrameCount;
     private bool _hasMissedImportantFrames; // True if we missed frames at start/pause/unpause/stop
+    private const double _fps = 60.0;
+    private double LevelSeconds => _levelFrameCount / _fps;
 
-    public IlTimer(BraidGame braidGame, int? onlyWorld = null, int? onlyLevel = null, bool resetPieces = false)
+    public IlTimer(BraidGame braidGame, int? onlyWorld = null, int? onlyLevel = null, bool resetPieces = false, bool liveTimer = false)
     {
         _braidGame = braidGame;
         _onlyWorld = onlyWorld;
         _onlyLevel = onlyLevel;
         _resetPieces = resetPieces;
+        _liveTimer = liveTimer;
         Restart();
     }
 
@@ -62,6 +70,7 @@ internal class IlTimer
         _currentWorld = _braidGame.TimWorld;
         _currentLevel = _braidGame.TimLevel;
         _stopped = (_onlyWorld != null && _currentWorld != _onlyWorld) || (_onlyLevel != null && _currentLevel != _onlyLevel);
+        _paused = false;
         _frameIndex = _braidGame.FrameCount;
         _levelFrameCount = 0;
         _hasMissedImportantFrames = false;
@@ -87,13 +96,30 @@ internal class IlTimer
             Restart();
             _hasMissedImportantFrames |= hasMissedFrames;
             return true;
+
+            // TODO: Stop timer if level has changed; restart when _braidGame.TimEnterLevel
         }
 
         // Early exit if timer is stopped
         if (_stopped)
             return true;
 
-        _levelFrameCount += frameDelta;
+        // Pause timer if puzzle assembly or main menu screen is active
+        var paused = _braidGame.InPuzzleAssemblyScreen || _braidGame.InMainMenu;
+        if (paused != _paused)
+        {
+            _hasMissedImportantFrames |= hasMissedFrames;
+            _paused = paused;
+        }
+
+        if (!_paused)
+            _levelFrameCount += frameDelta;
+
+        if (_liveTimer)
+        {
+            using var _ = new TempConsoleColor(_paused ? ConsoleColor.DarkYellow : ConsoleColor.Blue);
+            Console.Write($"\r{LevelSeconds:0.00}");
+        }
 
         // Stop timer if level is finished
         if (_braidGame.TimEnterDoor || _braidGame.TimTouchedFlagpole)
@@ -101,11 +127,10 @@ internal class IlTimer
             _hasMissedImportantFrames |= hasMissedFrames;
             Stop();
 
-            const double fps = 60.0;
-            var levelSeconds = _levelFrameCount / fps;
-
-            Console.WriteLine($"\nLevel: {_currentWorld}-{_currentLevel}");
-            Console.WriteLine($"Time: {levelSeconds:0.00}");
+            Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r"); // Clear live timer
+            Console.WriteLine($"Level: {_currentWorld}-{_currentLevel}");
+            Console.WriteLine($"Time: {LevelSeconds:0.00}");
+            Console.WriteLine();
 
             if (_hasMissedImportantFrames)
                 ConsoleHelper.WriteWarning("Retiming needed due to dropped frames");
