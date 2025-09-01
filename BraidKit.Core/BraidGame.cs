@@ -96,10 +96,9 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
         set => TimJumpSpeed.Value = TimJumpSpeed.DefaultValue * value;
     }
 
-    public GameValue<int> TimLevelState { get; } = new(_processMemoryHandler, 0x5f93c0); // Level transition type
-    public bool TimEnterDoor => TimLevelState == 1;
-    public bool TimEnterLevel => TimLevelState == 4;
-    public bool TimTouchedFlagpole => GetDinosaurAkaGreeter()?.IsGreeterWalking ?? false;
+    public GameValue<LevelTransitionType> LevelTransitionType { get; } = new(_processMemoryHandler, 0x5f93c0);
+    public bool TimIsEnteringDoor => LevelTransitionType == Core.LevelTransitionType.FadeOut;
+    public bool TimHasTouchedFlagpole => GetDinosaurAkaGreeter()?.IsGreeterWalking ?? false;
 
     public GameValue<int> TimWorld { get; } = new(_processMemoryHandler, 0x5f718c);
     public GameValue<int> TimLevel { get; } = new(_processMemoryHandler, 0x5f7190);
@@ -157,6 +156,23 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
                 // TODO: Write<byte>?
                 _processMemoryHandler.Write(_initialPuzzlePieceAddr + _worldPuzzlePieceOffset * world + _individualPuzzlePieceOffset * piece, 0);
     }
+}
+
+// Note: These values are sometimes used as bitwise flags, not sure what to make of that
+public enum LevelTransitionType
+{
+    /// <summary>No fade in/out</summary>
+    None = 0,
+    /// <summary>Level fade-out when Tim enters a door</summary>
+    FadeOut = 1,
+    /// <summary>No idea what this is for</summary>
+    Unknown = 2,
+    /// <summary>Level fade-in when visited for the first time (non-speedrun mode)</summary>
+    FadeInSlow = 3,
+    /// <summary>Level fade-in when already visited, or speedrun mode is active</summary>
+    FadeInFast = 4,
+    /// <summary>Not sure how this differs from <see cref="LevelTransitionType.FadeInFast"/></summary>
+    FadeInWorld6Clouds = 5,
 }
 
 public enum GameMode

@@ -122,7 +122,7 @@ internal class IlTimer
         }
 
         // Stop timer if level is finished
-        if (_braidGame.TimEnterDoor || _braidGame.TimTouchedFlagpole)
+        if (_braidGame.TimIsEnteringDoor || _braidGame.TimHasTouchedFlagpole)
         {
             _hasMissedImportantFrames |= hasMissedFrames;
             Stop();
@@ -130,10 +130,9 @@ internal class IlTimer
             Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r"); // Clear live timer
             Console.WriteLine($"Level: {_currentWorld}-{_currentLevel}");
             Console.WriteLine($"Time: {LevelSeconds:0.00}");
-            Console.WriteLine();
-
             if (_hasMissedImportantFrames)
                 ConsoleHelper.WriteWarning("Retiming needed due to dropped frames");
+            Console.WriteLine();
 
             // TODO: Maybe this should be moved to Restart() so reset also happens when F1 is pressed?
             if (_resetPieces)
