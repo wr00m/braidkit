@@ -6,7 +6,7 @@ using Vortice.D3DCompiler;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
 
-namespace BraidKit.Inject;
+namespace BraidKit.Inject.Rendering;
 
 // TODO: Do vertex buffers, shaders, and device survive fullscreen toggle? If so, move device from methods to ctor
 internal class Renderer(BraidGame _braidGame) : IDisposable

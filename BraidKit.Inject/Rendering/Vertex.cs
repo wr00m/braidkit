@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using Vortice.Direct3D9;
 
-namespace BraidKit.Inject;
+namespace BraidKit.Inject.Rendering;
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct Vertex

@@ -1,4 +1,4 @@
-﻿namespace BraidKit.Inject;
+﻿namespace BraidKit.Inject.Rendering;
 
 internal static class Geometry
 {

@@ -1,7 +1,7 @@
 ﻿using InjectDotnet.NativeHelper;
 using System.Runtime.InteropServices;
 
-namespace BraidKit.Inject;
+namespace BraidKit.Inject.Hooks;
 
 /// <summary>
 /// Callback hook for the "draw game mode" function, which happens every game frame (except menu, puzzle screens, etc.)

@@ -1,8 +1,8 @@
 ﻿using Vortice.Direct3D9;
 
-namespace BraidKit.Inject;
+namespace BraidKit.Inject.Rendering;
 
-internal static class Extensions
+internal static class Direct3DExtensions
 {
     public static unsafe IntPtr GetEndSceneAddr(this IDirect3DDevice9 device)
     {

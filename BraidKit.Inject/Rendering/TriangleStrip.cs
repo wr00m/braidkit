@@ -1,6 +1,6 @@
 ﻿using Vortice.Direct3D9;
 
-namespace BraidKit.Inject;
+namespace BraidKit.Inject.Rendering;
 
 internal class TriangleStrip : IDisposable
 {

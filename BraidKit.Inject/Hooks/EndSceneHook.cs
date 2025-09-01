@@ -1,9 +1,10 @@
 ﻿using BraidKit.Core;
+using BraidKit.Inject.Rendering;
 using InjectDotnet.NativeHelper;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D9;
 
-namespace BraidKit.Inject;
+namespace BraidKit.Inject.Hooks;
 
 /// <summary>
 /// Callback hook for Direct3D's "end scene" function, which happens just before the next frame is rendered
