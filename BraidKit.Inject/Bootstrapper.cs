@@ -1,4 +1,4 @@
-﻿using BraidKit.Core;
+﻿using BraidKit.Core.Game;
 using BraidKit.Inject.Hooks;
 using BraidKit.Inject.Rendering;
 

@@ -1,4 +1,4 @@
-﻿namespace BraidKit.Core;
+﻿namespace BraidKit.Core.Helpers;
 
 public static class ConsoleHelper
 {

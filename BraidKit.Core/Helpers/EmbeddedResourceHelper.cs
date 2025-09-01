@@ -1,10 +1,10 @@
 ﻿using System.Reflection;
 
-namespace BraidKit.Core;
+namespace BraidKit.Core.Helpers;
 
-public static class Extensions
+public static class EmbeddedResourceHelper
 {
-    public static string ReadResourceFile(this Assembly assembly, string filename)
+    public static string ReadEmbeddedResourceFile(this Assembly assembly, string filename)
     {
         var qualifiedFilename = assembly.GetManifestResourceNames().Single(x => x.EndsWith(filename, StringComparison.OrdinalIgnoreCase));
         using var stream = assembly.GetManifestResourceStream(qualifiedFilename)!;
@@ -12,6 +12,4 @@ public static class Extensions
         var result = reader.ReadToEnd();
         return result;
     }
-
-    public static Entity GetTim(this IEnumerable<Entity> entities) => entities.FirstOrDefault(x => x.EntityType == EntityType.Guy) ?? throw new Exception("Tim not found");
 }

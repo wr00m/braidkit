@@ -1,4 +1,4 @@
-﻿using BraidKit.Core;
+﻿using BraidKit.Core.Game;
 using System.CommandLine;
 
 namespace BraidKit.Commands;

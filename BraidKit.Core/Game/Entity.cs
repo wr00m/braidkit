@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using BraidKit.Core.MemoryAccess;
 
-namespace BraidKit.Core;
+namespace BraidKit.Core.Game;
 
 public class Entity(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr)
 {
@@ -56,8 +56,8 @@ public class Entity(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr)
     private static readonly CircleEntityIntersectsRectangularEntityDelegate _circleEntityIntersectsRectangularEntity = Marshal.GetDelegateForFunctionPointer<CircleEntityIntersectsRectangularEntityDelegate>(0x4df010);
     public bool Intersects(Entity other) => _circleEntityIntersectsRectangularEntity(_addr, other.Addr, out var _, out var _, out var _, 0f, 0f);
 
-    public FlagpoleEntity? AsFlagpole() => EntityType == Core.EntityType.Flagpole ? new(_processMemoryHandler, _addr) : null;
-    public GreeterEntity? AsGreeter() => EntityType == Core.EntityType.Greeter ? new(_processMemoryHandler, _addr) : null;
+    public FlagpoleEntity? AsFlagpole() => EntityType == Game.EntityType.Flagpole ? new(_processMemoryHandler, _addr) : null;
+    public GreeterEntity? AsGreeter() => EntityType == Game.EntityType.Greeter ? new(_processMemoryHandler, _addr) : null;
 }
 
 public class FlagpoleEntity(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr) : Entity(_processMemoryHandler, _addr)
@@ -138,4 +138,9 @@ public enum EntityType
     Switch = 0x0057dd70, // Lever
     Text = 0x0057964c,
     Tiler = 0x0057de78,
+}
+
+public static class EntityHelper
+{
+    public static Entity GetTim(this IEnumerable<Entity> entities) => entities.FirstOrDefault(x => x.EntityType == EntityType.Guy) ?? throw new Exception("Tim not found");
 }

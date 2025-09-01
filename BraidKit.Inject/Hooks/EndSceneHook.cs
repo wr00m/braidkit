@@ -1,4 +1,4 @@
-﻿using BraidKit.Core;
+﻿using BraidKit.Core.Game;
 using BraidKit.Inject.Rendering;
 using InjectDotnet.NativeHelper;
 using System.Runtime.InteropServices;

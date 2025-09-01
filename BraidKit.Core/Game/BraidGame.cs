@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using BraidKit.Core.MemoryAccess;
 
-namespace BraidKit.Core;
+namespace BraidKit.Core.Game;
 
 public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHandler) : IDisposable
 {
@@ -31,7 +31,7 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
 
     public GameValue<bool> InMainMenu { get; } = new(_processMemoryHandler, 0x5f6ecc);
     public GameValue<GameMode> GameMode { get; } = new(_processMemoryHandler, 0x5f92c0);
-    public bool InPuzzleAssemblyScreen => GameMode == Core.GameMode.PuzzleAssemblyScreen;
+    public bool InPuzzleAssemblyScreen => GameMode == Game.GameMode.PuzzleAssemblyScreen;
 
     private static readonly byte[] _cameraEnabledBytes = [0xf3, 0x0f, 0x11];
     private static readonly byte[] _cameraDisabledBytes = [0x90, 0x90, 0x90];
@@ -97,7 +97,7 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     }
 
     public GameValue<LevelTransitionType> LevelTransitionType { get; } = new(_processMemoryHandler, 0x5f93c0);
-    public bool TimIsEnteringDoor => LevelTransitionType == Core.LevelTransitionType.FadeOut;
+    public bool TimIsEnteringDoor => LevelTransitionType == Game.LevelTransitionType.FadeOut;
     public bool TimHasTouchedFlagpole => GetDinosaurAkaGreeter()?.IsGreeterWalking ?? false;
 
     public GameValue<int> TimWorld { get; } = new(_processMemoryHandler, 0x5f718c);
@@ -171,7 +171,7 @@ public enum LevelTransitionType
     FadeInSlow = 3,
     /// <summary>Level fade-in when already visited, or speedrun mode is active</summary>
     FadeInFast = 4,
-    /// <summary>Not sure how this differs from <see cref="LevelTransitionType.FadeInFast"/></summary>
+    /// <summary>Not sure how this differs from <see cref="FadeInFast"/></summary>
     FadeInWorld6Clouds = 5,
 }
 

@@ -1,4 +1,5 @@
-﻿using BraidKit.Core;
+﻿using BraidKit.Core.Game;
+using BraidKit.Core.Helpers;
 using System.CommandLine;
 using System.Runtime.InteropServices;
 

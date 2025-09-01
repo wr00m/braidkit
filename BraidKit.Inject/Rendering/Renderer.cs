@@ -1,4 +1,5 @@
-﻿using BraidKit.Core;
+﻿using BraidKit.Core.Game;
+using BraidKit.Core.Helpers;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
@@ -24,7 +25,7 @@ internal class Renderer(BraidGame _braidGame) : IDisposable
 
     private static ReadOnlySpan<byte> CompileShader(string filename, string entryPoint, string profile)
     {
-        var shaderSource = Assembly.GetExecutingAssembly().ReadResourceFile(filename);
+        var shaderSource = Assembly.GetExecutingAssembly().ReadEmbeddedResourceFile(filename);
         var result = Compiler.Compile(shaderSource, entryPoint, filename, profile, out var compiledBlob, out var errorBlob);
         if (result.Failure)
             Log($"Shader compilation failed: {errorBlob?.AsString() ?? "Unknown error"}");

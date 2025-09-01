@@ -1,6 +1,6 @@
 ﻿using BraidKit.Core.MemoryAccess;
 
-namespace BraidKit.Core;
+namespace BraidKit.Core.Game;
 
 public class DisplaySystem(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr)
 {
