@@ -1,4 +1,5 @@
-﻿using BraidKit.Core.Game;
+﻿using BraidKit.Core;
+using BraidKit.Core.Game;
 using BraidKit.Core.Helpers;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
@@ -16,6 +17,7 @@ internal class Renderer(BraidGame _braidGame) : IDisposable
     private IDirect3DPixelShader9? _linePixelShader;
     private TriangleStrip? _circle;
     private TriangleStrip? _rectangle;
+    public float LineWidth { get; set; } = RenderSettings.DefaultLineWidth;
 
     public void Dispose()
     {
@@ -126,8 +128,7 @@ internal class Renderer(BraidGame _braidGame) : IDisposable
         device.SetVertexShaderConstant((uint)LineShaderUniformRegister.VS_WorldMtx, worldMtx);
 
         // Set line style
-        const float defaultLineWidth = 2f;
-        device.SetVertexShaderConstant((uint)LineShaderUniformRegister.VS_ScaleXY_LineWidth, [scale.X, scale.Y, defaultLineWidth, 0f]);
+        device.SetVertexShaderConstant((uint)LineShaderUniformRegister.VS_ScaleXY_LineWidth, [scale.X, scale.Y, LineWidth, 0f]);
         device.SetPixelShaderConstant((uint)LineShaderUniformRegister.PS_Color, [color.ToVector4()]);
 
         // Render vertex buffer

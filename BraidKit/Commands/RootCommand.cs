@@ -19,6 +19,6 @@ internal static partial class Commands
             ToggleDebugInfoCommand,
             IlTimerCommand,
             ResetPiecesCommand,
-            ToggleHitboxCommand,
+            RenderCommand,
         };
 }
