@@ -24,7 +24,7 @@ internal static class Bootstrapper
         _renderer ??= new(_braidGame);
         _endSceneHook ??= new(_braidGame, device =>
         {
-            if (_renderColliders)
+            if (_renderColliders && !_braidGame.InMainMenu && !_braidGame.InPuzzleAssemblyScreen)
                 _renderer.RenderCollisionGeometries(device);
         });
 
