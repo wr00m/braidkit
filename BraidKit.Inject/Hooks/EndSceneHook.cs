@@ -1,5 +1,4 @@
-﻿using BraidKit.Core.Game;
-using BraidKit.Inject.Rendering;
+﻿using BraidKit.Inject.Rendering;
 using InjectDotnet.NativeHelper;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D9;
@@ -11,18 +10,19 @@ namespace BraidKit.Inject.Hooks;
 /// </summary>
 internal class EndSceneHook : IDisposable
 {
+    private readonly IDirect3DDevice9 _device;
     [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     private delegate int EndSceneDelegate(IntPtr devicePtr);
-    private readonly Action<IDirect3DDevice9> _hookAction;
+    private readonly Action _hookAction;
     private readonly JumpHook _jumpHook;
     private readonly EndSceneDelegate _originalFunction;
     private readonly GCHandle _gcHandle;
 
-    public EndSceneHook(BraidGame braidGame, Action<IDirect3DDevice9> hookAction)
+    public EndSceneHook(IDirect3DDevice9 device, Action hookAction)
     {
         // Get end scene function pointer
-        var device = new IDirect3DDevice9(braidGame.DisplaySystem.IDirect3DDevice9Addr.Value);
-        var endSceneAddr = device.GetEndSceneAddr();
+        _device = device;
+        var endSceneAddr = _device.GetEndSceneAddr();
 
         // Setup hook/trampoline
         var del = new EndSceneDelegate(HookedEndScene);
@@ -41,8 +41,10 @@ internal class EndSceneHook : IDisposable
 
     private int HookedEndScene(IntPtr devicePtr)
     {
-        var device = new IDirect3DDevice9(devicePtr);
-        _hookAction(device);
+        // This check is probably unnecessary...
+        if (devicePtr == _device.NativePointer)
+            _hookAction();
+
         var result = _originalFunction(devicePtr);
         return result;
     }

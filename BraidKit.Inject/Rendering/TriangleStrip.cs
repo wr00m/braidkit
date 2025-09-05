@@ -2,23 +2,25 @@
 
 namespace BraidKit.Inject.Rendering;
 
-internal class TriangleStrip : IDisposable
+internal class TriangleStrip<TVertex> : IDisposable
+    where TVertex : unmanaged, IVertex
 {
     public readonly uint PrimitiveCount;
-    public uint Stride => Vertex.Size;
-    public VertexFormat VertexFormat => Vertex.Format;
+    public readonly uint Stride = TVertex.Size;
+    public readonly VertexFormat VertexFormat = TVertex.Format;
     public IDirect3DVertexBuffer9 _vertexBuffer;
 
-    public TriangleStrip(IDirect3DDevice9 device, List<Vertex> verts)
+    public TriangleStrip(IDirect3DDevice9 device, List<TVertex> verts)
     {
         PrimitiveCount = (uint)verts.Count - 2;
+
         _vertexBuffer = device.CreateVertexBuffer(
             (uint)verts.Count * Stride,
             Usage.WriteOnly,
-            Vertex.Format,
+            TVertex.Format,
             Pool.Managed);
 
-        var buff = _vertexBuffer.Lock<Vertex>(0, 0, LockFlags.None);
+        var buff = _vertexBuffer.Lock<TVertex>(0, 0, LockFlags.None);
         verts.CopyTo(buff);
         _vertexBuffer.Unlock();
     }

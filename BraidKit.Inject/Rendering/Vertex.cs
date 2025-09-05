@@ -4,18 +4,18 @@ using Vortice.Direct3D9;
 
 namespace BraidKit.Inject.Rendering;
 
-[StructLayout(LayoutKind.Sequential)]
-internal struct Vertex
+internal interface IVertex
 {
-    public readonly Vector3 Position;
-    public readonly Vector3 Normal;
+    static abstract VertexFormat Format { get; }
+    static abstract uint Size { get; }
+}
 
-    public Vertex(float x, float y, float z, float nx, float ny, float nz)
-    {
-        Position = new(x, y, z);
-        Normal = new(nx, ny, nz);
-    }
+[StructLayout(LayoutKind.Sequential)]
+internal readonly struct LineVertex(float x, float y, float z, float nx, float ny, float nz) : IVertex
+{
+    public readonly Vector3 Position = new(x, y, z);
+    public readonly Vector3 Normal = new(nx, ny, nz);
 
-    public static readonly VertexFormat Format = VertexFormat.Position | VertexFormat.Normal;
-    public static uint Size => (uint)Marshal.SizeOf<Vertex>();
+    public static VertexFormat Format => VertexFormat.Position | VertexFormat.Normal;
+    public static uint Size => (uint)Marshal.SizeOf<LineVertex>();
 }
