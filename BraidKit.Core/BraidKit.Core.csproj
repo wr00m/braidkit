@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="InjectDotnet" Version="0.4.0" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.8" />
   </ItemGroup>
 
 </Project>

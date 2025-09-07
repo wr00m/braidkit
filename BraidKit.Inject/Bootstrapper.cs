@@ -17,14 +17,22 @@ internal static class Bootstrapper
 
     static Bootstrapper()
     {
-        _braidGame = BraidGame.GetFromCurrentProcess();
-        _device = new(_braidGame.DisplaySystem.IDirect3DDevice9Addr);
-        _gameRenderer = new(_braidGame, _device);
-        _endSceneHook = new(_device, () =>
+        try
         {
-            if (_renderColliders && !_braidGame.InMainMenu && !_braidGame.InPuzzleAssemblyScreen)
-                _gameRenderer.RenderCollisionGeometries();
-        });
+            _braidGame = BraidGame.GetFromCurrentProcess();
+            _device = new(_braidGame.DisplaySystem.IDirect3DDevice9Addr);
+            _gameRenderer = new(_braidGame, _device);
+            _endSceneHook = new(_device, () =>
+            {
+                if (_renderColliders && !_braidGame.InMainMenu && !_braidGame.InPuzzleAssemblyScreen)
+                    _gameRenderer.RenderCollisionGeometries();
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(ex);
+            throw;
+        }
     }
 
     [STAThread]

@@ -10,13 +10,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="LineShader.hlsl" />
+    <None Remove="Rendering\Resources\font.json" />
+    <None Remove="Rendering\Resources\font.png" />
+    <None Remove="Rendering\Resources\LineShader.hlsl" />
+    <None Remove="Rendering\Resources\TextShader.hlsl" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Rendering\Resources\LineShader.hlsl">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
+    <EmbeddedResource Include="Rendering\Resources\font.json" />
+    <EmbeddedResource Include="Rendering\Resources\font.png" />
+    <EmbeddedResource Include="Rendering\Resources\LineShader.hlsl" />
+    <EmbeddedResource Include="Rendering\Resources\TextShader.hlsl" />
   </ItemGroup>
 
   <ItemGroup>

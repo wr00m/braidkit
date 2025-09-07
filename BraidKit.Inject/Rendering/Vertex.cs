@@ -19,3 +19,13 @@ internal readonly struct LineVertex(float x, float y, float z, float nx, float n
     public static VertexFormat Format => VertexFormat.Position | VertexFormat.Normal;
     public static uint Size => (uint)Marshal.SizeOf<LineVertex>();
 }
+
+[StructLayout(LayoutKind.Sequential)]
+internal readonly struct FontVertex(float x, float y, float u, float v) : IVertex
+{
+    public readonly Vector3 Position = new(x, y, 0f);
+    public readonly Vector2 Texcoord = new(u, v);
+
+    public static VertexFormat Format => VertexFormat.Position | VertexFormat.Texture1;
+    public static uint Size => (uint)Marshal.SizeOf<FontVertex>();
+}

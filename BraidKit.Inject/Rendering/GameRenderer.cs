@@ -8,12 +8,13 @@ namespace BraidKit.Inject.Rendering;
 internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : IDisposable
 {
     private readonly LineRenderer _lineRenderer = new(_device);
-
+    private readonly TextRenderer _textRenderer = new(_device);
     public float LineWidth { get => _lineRenderer.LineWidth; set => _lineRenderer.LineWidth = value; }
 
     public void Dispose()
     {
-        _lineRenderer?.Dispose();
+        _lineRenderer.Dispose();
+        _textRenderer.Dispose();
     }
 
     public void RenderCollisionGeometries()
@@ -28,10 +29,14 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
         _lineRenderer.Activate();
         _lineRenderer.SetViewProjectionMatrix(viewProjMtx);
-
         var entities = _braidGame.GetEntities();
         foreach (var entity in entities)
             RenderCollisionGeometry(entity);
+
+        _textRenderer.Activate();
+        _textRenderer.SetViewProjectionMatrix(viewProjMtx);
+        var tim = entities.GetTim();
+        _textRenderer.RenderText($"velocity\nx={tim.VelocityX:0}\ny={tim.VelocityY:0}", 12f, tim.PositionX, tim.PositionY, true, false);
     }
 
     private void RenderCollisionGeometry(Entity entity)

@@ -1,0 +1,43 @@
+uniform float4x4 ViewProj;
+uniform float4x4 World;
+
+struct VS_INPUT
+{
+    float3 position : POSITION;
+    float2 texcoord : TEXCOORD0;
+};
+
+struct VS_OUTPUT
+{
+    float4 position : POSITION;
+    float2 texcoord : TEXCOORD0;
+};
+
+VS_OUTPUT VertexShaderMain(VS_INPUT input)
+{
+    float4 pos = float4(input.position.xy, 0.0, 1.0);
+    pos = mul(pos, World);
+    pos = mul(pos, ViewProj);
+
+    VS_OUTPUT output;
+    output.position = pos;
+    output.texcoord = input.texcoord;
+    return output;
+}
+
+texture fontTexture : register(t0);
+
+sampler2D fontSampler = sampler_state
+{
+    Texture = <fontTexture>;
+    MinFilter = Linear;
+    MagFilter = Linear;
+    MipFilter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+float4 PixelShaderMain(VS_OUTPUT input) : COLOR
+{
+    return tex2D(fontSampler, input.texcoord);
+}
