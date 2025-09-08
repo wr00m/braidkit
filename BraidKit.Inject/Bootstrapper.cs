@@ -9,7 +9,6 @@ namespace BraidKit.Inject;
 
 internal static class Bootstrapper
 {
-    private static bool _renderColliders = false; // TODO: Move to GameRenderer, probably
     private static readonly BraidGame _braidGame;
     private static readonly IDirect3DDevice9 _device;
     private static readonly GameRenderer _gameRenderer;
@@ -22,11 +21,7 @@ internal static class Bootstrapper
             _braidGame = BraidGame.GetFromCurrentProcess();
             _device = new(_braidGame.DisplaySystem.IDirect3DDevice9Addr);
             _gameRenderer = new(_braidGame, _device);
-            _endSceneHook = new(_device, () =>
-            {
-                if (_renderColliders && !_braidGame.InMainMenu && !_braidGame.InPuzzleAssemblyScreen)
-                    _gameRenderer.RenderCollisionGeometries();
-            });
+            _endSceneHook = new(_device, () => _gameRenderer.Render());
         }
         catch (Exception ex)
         {
@@ -40,9 +35,12 @@ internal static class Bootstrapper
     {
         // Load argument struct from unmanaged memory
         var renderSettings = Marshal.PtrToStructure<RenderSettings>(argsAddr);
-        _renderColliders = renderSettings.RenderColliders;
-        _gameRenderer.LineWidth = renderSettings.LineWidth;
 
-        return _renderColliders ? 1 : 0;
+        _gameRenderer.RenderColliders = renderSettings.RenderColliders;
+        _gameRenderer.RenderVelocity = renderSettings.RenderVelocity;
+        _gameRenderer.LineWidth = renderSettings.LineWidth;
+        _gameRenderer.FontSize = renderSettings.FontSize;
+
+        return _gameRenderer.IsRenderingActive ? 1 : 0;
     }
 }

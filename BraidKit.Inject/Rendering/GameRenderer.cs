@@ -1,4 +1,5 @@
-﻿using BraidKit.Core.Game;
+﻿using BraidKit.Core;
+using BraidKit.Core.Game;
 using System.Numerics;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
@@ -9,7 +10,11 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 {
     private readonly LineRenderer _lineRenderer = new(_device);
     private readonly TextRenderer _textRenderer = new(_device);
+    public bool RenderColliders { get; set; } = RenderSettings.DefaultRenderColliders;
+    public bool RenderVelocity { get; set; } = RenderSettings.DefaultRenderVelocity;
     public float LineWidth { get => _lineRenderer.LineWidth; set => _lineRenderer.LineWidth = value; }
+    public float FontSize { get => _textRenderer.FontSize; set => _textRenderer.FontSize = value; }
+    public bool IsRenderingActive => RenderColliders || RenderVelocity;
 
     public void Dispose()
     {
@@ -17,8 +22,11 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         _textRenderer.Dispose();
     }
 
-    public void RenderCollisionGeometries()
+    public void Render()
     {
+        if (!IsRenderingActive || _braidGame.InMainMenu || _braidGame.InPuzzleAssemblyScreen)
+            return;
+
         var viewProjMtx = Matrix4x4.Transpose(Matrix4x4.CreateOrthographicOffCenter(
             _braidGame.CameraPositionX,
             _braidGame.CameraPositionX + _braidGame.IdealWidth,
@@ -27,16 +35,24 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             0f,
             1f));
 
-        _lineRenderer.Activate();
-        _lineRenderer.SetViewProjectionMatrix(viewProjMtx);
-        var entities = _braidGame.GetEntities();
-        foreach (var entity in entities)
-            RenderCollisionGeometry(entity);
+        if (RenderColliders)
+        {
+            _lineRenderer.Activate();
+            _lineRenderer.SetViewProjectionMatrix(viewProjMtx);
 
-        _textRenderer.Activate();
-        _textRenderer.SetViewProjectionMatrix(viewProjMtx);
-        var tim = entities.GetTim();
-        _textRenderer.RenderText($"velocity\nx={tim.VelocityX:0}\ny={tim.VelocityY:0}", 12f, tim.PositionX, tim.PositionY, true, false);
+            var entities = _braidGame.GetEntities();
+            foreach (var entity in entities)
+                RenderCollisionGeometry(entity);
+        }
+
+        if (RenderVelocity)
+        {
+            _textRenderer.Activate();
+            _textRenderer.SetViewProjectionMatrix(viewProjMtx);
+
+            var tim = _braidGame.GetTim();
+            _textRenderer.RenderText($"velocity\nx={tim.VelocityX:0}\ny={tim.VelocityY:0}", tim.PositionX, tim.PositionY, true, false);
+        }
     }
 
     private void RenderCollisionGeometry(Entity entity)
