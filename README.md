@@ -1,7 +1,7 @@
 # braidkit
 Command-line tool for manipulating and modifying the puzzle-platform game Braid, designed for exploration, experimentation and theorycrafting.
 
-**Note to users:** This tool modifies game memory at runtime. If you use it in a way that violates any End User License Agreement (EULA), Terms of Service (ToS), or similar policies, you are solely responsible for the consequences. Please use it responsibly.
+**Note to users:** This tool modifies game memory at runtime and uses DLL injection. If you use it in a way that violates any End User License Agreement (EULA), Terms of Service (ToS), or similar policies, you are solely responsible for the consequences. Please use it responsibly.
 
 **Note to speedrunners:** The game must be restarted after using this tool to ensure an unmodified game state before performing any competitive speedruns, except for the `il-timer` command which is allowed for [individual level speedruns](http://bit.ly/BraidIL).
 
