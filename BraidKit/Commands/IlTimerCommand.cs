@@ -8,7 +8,7 @@ namespace BraidKit.Commands;
 internal static partial class Commands
 {
     private static Command IlTimerCommand =>
-        new Command("il-timer", "Prints level complete times (flag levels not supported)")
+        new Command("il-timer", "Prints level complete times")
         {
             // TODO: Aliases should be single-letter
             new Option<int?>("--world", "-w") { Description = "Only use timer for this world" },
