@@ -40,6 +40,7 @@ internal static class Bootstrapper
         _gameRenderer.RenderVelocity = renderSettings.RenderVelocity;
         _gameRenderer.LineWidth = renderSettings.LineWidth;
         _gameRenderer.FontSize = renderSettings.FontSize;
+        _gameRenderer.FontColor = new(renderSettings.FontColor);
 
         return _gameRenderer.IsRenderingActive ? 1 : 0;
     }

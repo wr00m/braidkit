@@ -3,6 +3,7 @@ using BraidKit.Core.Helpers;
 using System.Numerics;
 using System.Reflection;
 using Vortice.Direct3D9;
+using Vortice.Mathematics;
 using static BraidKit.Inject.Rendering.ShaderHelper;
 
 namespace BraidKit.Inject.Rendering;
@@ -15,7 +16,9 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
     private readonly FontTextureInfo _font = Assembly.GetExecutingAssembly().ReadEmbeddedJsonFile<FontTextureInfo>("font.json");
     private const uint VS_ViewProjMtx = 0;
     private const uint VS_WorldMtx = 4;
+    private const uint PS_Color = 0;
     public float FontSize { get; set; } = RenderSettings.DefaultFontSize;
+    public Color4 FontColor { get; set; } = new(RenderSettings.DefaultFontColor);
     public float LineSpacing { get; set; } = .9f;
 
     public void Dispose()
@@ -50,6 +53,9 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         var fontScale = FontSize / _font.Size;
         var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateScale(fontScale, -fontScale, fontScale) * Matrix4x4.CreateTranslation(x, y, 0f));
         _device.SetVertexShaderConstant(VS_WorldMtx, worldMtx);
+
+        // Set font color
+        _device.SetPixelShaderConstant(PS_Color, [FontColor.ToVector4()]);
 
         // Get and render triangles
         var triangles = GetTriangleVertices(text, centerX, centerY);

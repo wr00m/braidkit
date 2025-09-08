@@ -25,6 +25,7 @@ VS_OUTPUT VertexShaderMain(VS_INPUT input)
     return output;
 }
 
+uniform float4 Color;
 texture fontTexture : register(t0);
 
 sampler2D fontSampler = sampler_state
@@ -39,5 +40,5 @@ sampler2D fontSampler = sampler_state
 
 float4 PixelShaderMain(VS_OUTPUT input) : COLOR
 {
-    return tex2D(fontSampler, input.texcoord);
+    return tex2D(fontSampler, input.texcoord) * Color;
 }

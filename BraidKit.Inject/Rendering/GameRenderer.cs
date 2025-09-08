@@ -14,6 +14,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
     public bool RenderVelocity { get; set; } = RenderSettings.DefaultRenderVelocity;
     public float LineWidth { get => _lineRenderer.LineWidth; set => _lineRenderer.LineWidth = value; }
     public float FontSize { get => _textRenderer.FontSize; set => _textRenderer.FontSize = value; }
+    public Color4 FontColor { get => _textRenderer.FontColor; set => _textRenderer.FontColor = value; }
     public bool IsRenderingActive => RenderColliders || RenderVelocity;
 
     public void Dispose()
