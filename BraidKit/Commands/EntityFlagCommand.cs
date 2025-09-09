@@ -6,7 +6,7 @@ namespace BraidKit.Commands;
 internal static partial class Commands
 {
     private static Command EntityFlagCommand =>
-        new Command("entity-flag", "Sets behavior flags for game entities (experimental)")
+        new Command("entity-flag", "Sets behavior flags for game entities (may cause unexpected behavior)")
         {
             new Argument<EntityType>("entity-type").FormatEnumArgumentHelp(),
             new Argument<EntityFlags>("flag").FormatEnumArgumentHelp(),

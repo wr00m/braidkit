@@ -27,7 +27,7 @@ braidkit il-timer --live                     // Additionally print live timer
 braidkit il-timer --reset-pieces             // Additionally reset all puzzle pieces on level entry
 braidkit reset-pieces                        // Resets all puzzle pieces on current save
 braidkit debug-info                          // Toggle in-game debug info
-braidkit render                              // Render in-game debug overlay, e.g., colliders
+braidkit render-overlay                      // Render in-game debug overlay, e.g., colliders
 braidkit -h                                  // Show help
 ```
 

@@ -7,15 +7,15 @@ namespace BraidKit.Commands;
 
 internal static partial class Commands
 {
-    private static Command RenderCommand =>
-        new Command("render", "Renders in-game debug overlay (experimental)")
+    private static Command RenderOverlayCommand =>
+        new Command("render-overlay", "Renders in-game debug overlay (experimental)")
         {
             new Option<bool>("--colliders", "-c") { Description = "Show collision geometry", DefaultValueFactory = _ => RenderSettings.DefaultRenderColliders },
             new Option<bool>("--velocity", "-v") { Description = "Show Tim's velocity", DefaultValueFactory = _ => RenderSettings.DefaultRenderVelocity },
             new Option<float>("--line-width", "-l") { Description = "Geometry outline width", DefaultValueFactory = _ => RenderSettings.DefaultLineWidth },
             new Option<float>("--font-size", "-f") { Description = "Font size", DefaultValueFactory = _ => RenderSettings.DefaultFontSize },
             new Option<string>("--font-color") { Description = "Font color in RGBA hex format", DefaultValueFactory = _ => RgbaToHex(RenderSettings.DefaultFontColor) },
-            RenderResetCommand,
+            RenderOverlayResetCommand,
         }
         .SetBraidGameAction((braidGame, parseResult) =>
         {
@@ -32,7 +32,7 @@ internal static partial class Commands
             OutputRender(isRendering);
         });
 
-    private static Command RenderResetCommand =>
+    private static Command RenderOverlayResetCommand =>
         new Command("reset", "Stops rendering in-game debug overlay")
         .SetBraidGameAction((braidGame, parseResult) =>
         {
