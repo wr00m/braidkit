@@ -95,6 +95,7 @@ internal class IlTimer
         if (_braidGame.TimWorld != _currentWorld || _braidGame.TimLevel != _currentLevel)
         {
             Restart();
+            //_levelFrameCount += frameDelta; // TODO: Timer is usually 1 frame too fast, but this doesn't seem to fix it...
             _hasMissedImportantFrames |= hasMissedFrames;
             return true;
 

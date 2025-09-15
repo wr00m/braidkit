@@ -132,15 +132,19 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     private IEnumerable<Entity> GetEntitiesByPortableType(PortableTypeAddr portableTypeAddr)
     {
         var portableType = new PortableType(_processMemoryHandler, portableTypeAddr);
-        var linkedListArrayAddr = new PointerPath(_processMemoryHandler, _entityManagerPointerAddr, 0x30).GetAddress()!.Value;
-        var linkedListArray = new CArray(linkedListArrayAddr, MemoryAccess.LinkedList<IntPtr>.StructSize);
+        var linkedListArrayAddr = new PointerPath(_processMemoryHandler, _entityManagerPointerAddr, 0x30).GetAddress();
+        if (linkedListArrayAddr is null)
+            return [];
+
+        var linkedListArray = new CArray(linkedListArrayAddr.Value, MemoryAccess.LinkedList<IntPtr>.StructSize);
         var linkedListAddr = linkedListArray.GetItemAddr(portableType.SerialNumber);
         var linkedList = new MemoryAccess.LinkedList<IntPtr>(_processMemoryHandler, linkedListAddr);
         var entities = linkedList.GetItems().Select(entityAddr => new Entity(_processMemoryHandler, entityAddr));
         return entities;
     }
 
-    public Entity GetTim() => GetEntitiesByPortableType(PortableTypeAddr.Guy).FirstOrDefault() ?? throw new Exception("Where's Tim?");
+    public Entity? GetTimOrNull() => GetEntitiesByPortableType(PortableTypeAddr.Guy).FirstOrDefault();
+    public Entity GetTim() => GetTimOrNull() ?? throw new Exception("Where's Tim?");
     public GreeterEntity? GetDinosaurAkaGreeter() => GetEntitiesByPortableType(PortableTypeAddr.Greeter).FirstOrDefault()?.AsGreeter();
     public List<Entity> GetPuzzleFrames() => GetEntitiesByPortableType(PortableTypeAddr.PuzzleFrame).ToList();
 

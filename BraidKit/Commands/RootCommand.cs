@@ -20,5 +20,6 @@ internal static partial class Commands
             IlTimerCommand,
             ResetPiecesCommand,
             RenderOverlayCommand,
+            WatchValueCommand,
         };
 }
