@@ -65,7 +65,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
     private void RenderEntityBounds(Entity entity)
     {
-        var color = GetEntityBoundsColor(entity);
+        var color = GetEntityLineColor(entity);
         if (color is null)
             return;
 
@@ -77,39 +77,47 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
     private void RenderEntityCenter(Entity entity)
     {
-        var color = GetEntityBoundsColor(entity);
+        var color = GetEntityLineColor(entity);
         if (color is null)
             return;
 
         _lineRenderer.RenderPlusSign(entity.Center, 8f, color.Value, RenderSettings.LineWidth, entity.Theta);
     }
 
-    private static Color4? GetEntityBoundsColor(Entity entity) => entity.EntityType.Value switch
+    private Color4? GetEntityLineColor(Entity entity)
     {
-        EntityType.Guy => new(1f, 1f, 1f, 1f),
-        EntityType.Claw => new(0f, 1f, 0f, 1f),
-        EntityType.Bullet or
-        EntityType.Cannon or
-        EntityType.Chandelier or
-        EntityType.ChandelierHook or
-        EntityType.Cloud or
-        EntityType.Door or
-        EntityType.Flagpole or
-        EntityType.Floor or
-        EntityType.Gate or
-        EntityType.GunBoss or
-        EntityType.Key or
-        EntityType.Mimic or
-        EntityType.Monstar or
-        EntityType.Platform or
-        EntityType.Prince or
-        EntityType.Princess or
-        EntityType.PuzzleFrame or
-        EntityType.PuzzlePiece or
-        EntityType.Ring or
-        EntityType.SpecialItem => entity.IsMonster() ? new(1f, 0f, 0f, 1f) : new(0f, 0f, 1f, 1f),
-        EntityType.PiecedImage => entity.IsClimbable ? new(1f, .5f, 0f, 1f) : null,
-        EntityType.Tiler => new(1f, 1f, 0f, 1f),
-        _ => null,
-    };
+        Color4? color = entity.EntityType.Value switch
+        {
+            EntityType.Guy => new(1f, 1f, 1f, 1f),
+            EntityType.Claw => new(0f, 1f, 0f, 1f),
+            EntityType.Bullet or
+            EntityType.Cannon or
+            EntityType.Chandelier or
+            EntityType.ChandelierHook or
+            EntityType.Cloud or
+            EntityType.Door or
+            EntityType.Flagpole or
+            EntityType.Floor or
+            EntityType.Gate or
+            EntityType.GunBoss or
+            EntityType.Key or
+            EntityType.Mimic or
+            EntityType.Monstar or
+            EntityType.Platform or
+            EntityType.Prince or
+            EntityType.Princess or
+            EntityType.PuzzleFrame or
+            EntityType.PuzzlePiece or
+            EntityType.Ring or
+            EntityType.SpecialItem => entity.IsMonster() ? new(1f, 0f, 0f, 1f) : new(0f, 0f, 1f, 1f),
+            EntityType.PiecedImage => entity.IsClimbable ? new(1f, .5f, 0f, 1f) : null,
+            EntityType.Tiler => new(1f, 1f, 0f, 1f),
+            _ => null,
+        };
+
+        if (color != null && RenderSettings.IsLineColorActive())
+            color = new(RenderSettings.LineColor);
+
+        return color;
+    }
 }

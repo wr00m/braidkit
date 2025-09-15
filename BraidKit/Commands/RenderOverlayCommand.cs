@@ -17,6 +17,7 @@ internal static partial class Commands
             new Option<float>("--line-width", "-l") { Description = "Geometry outline width", DefaultValueFactory = _ => RenderSettings.DefaultLineWidth },
             new Option<float>("--font-size", "-s") { Description = "Font size", DefaultValueFactory = _ => RenderSettings.DefaultFontSize },
             new Option<string>("--font-color", "-f") { Description = "Font color in RGBA hex format", DefaultValueFactory = _ => RgbaToHex(RenderSettings.DefaultFontColor) },
+            new Option<string>("--line-color", "-n") { Description = "Geometry line color in RGBA hex format", DefaultValueFactory = _ => RgbaToHex(RenderSettings.DefaultLineColor) },
             RenderOverlayResetCommand,
         }
         .SetBraidGameAction((braidGame, parseResult) =>
@@ -30,6 +31,7 @@ internal static partial class Commands
                 LineWidth = parseResult.GetRequiredValue<float>("--line-width"),
                 FontSize = parseResult.GetRequiredValue<float>("--font-size"),
                 FontColor = HexToRgba(parseResult.GetRequiredValue<string>("--font-color")),
+                LineColor = HexToRgba(parseResult.GetRequiredValue<string>("--line-color")),
             };
 
             var isRendering = braidGame.Process.InjectRenderer(renderSettings);
