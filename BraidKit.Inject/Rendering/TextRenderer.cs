@@ -1,5 +1,4 @@
-﻿using BraidKit.Core;
-using BraidKit.Core.Helpers;
+﻿using BraidKit.Core.Helpers;
 using System.Numerics;
 using System.Reflection;
 using Vortice.Direct3D9;
@@ -17,9 +16,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
     private const uint VS_ViewProjMtx = 0;
     private const uint VS_WorldMtx = 4;
     private const uint PS_Color = 0;
-    public float FontSize { get; set; } = RenderSettings.DefaultFontSize;
-    public Color4 FontColor { get; set; } = new(RenderSettings.DefaultFontColor);
-    public float LineSpacing { get; set; } = .9f;
+    private const float _lineSpacing = .9f;
 
     public void Dispose()
     {
@@ -47,19 +44,19 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderText(string text, float x, float y, bool centerX, bool centerY)
+    public void RenderText(string text, float x, float y, bool centerX, bool centerY, float fontSize, Color4 fontColor)
     {
         // Set world matrix
-        var fontScale = FontSize / _font.Size;
+        var fontScale = fontSize / _font.Size;
         var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateScale(fontScale, -fontScale, fontScale) * Matrix4x4.CreateTranslation(x, y, 0f));
         _device.SetVertexShaderConstant(VS_WorldMtx, worldMtx);
 
         // Set font color
-        _device.SetPixelShaderConstant(PS_Color, [FontColor.ToVector4()]);
+        _device.SetPixelShaderConstant(PS_Color, [fontColor.ToVector4()]);
 
         // Get and render triangles
-        var triangles = GetTriangleVertices(text, centerX, centerY);
-        _device.RenderTriangles(triangles);
+        var triangles = new Primitives<FontVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, centerX, centerY), useVertexBuffer: false);
+        triangles.Render();
     }
 
     private List<FontVertex> GetTriangleVertices(string text, bool centerX, bool centerY)
@@ -73,7 +70,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         {
             var line = lines[i];
             var x = centerX ? _font.GetTextWidth(line) * -.5f : 0f;
-            var y = (centerY ? (i + 1f - lines.Length * .5f) : (i + 1f)) * _font.Size * LineSpacing;
+            var y = (centerY ? (i + 1f - lines.Length * .5f) : (i + 1f)) * _font.Size * _lineSpacing;
 
             foreach (var @char in line)
             {

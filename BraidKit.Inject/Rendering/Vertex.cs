@@ -11,12 +11,13 @@ internal interface IVertex
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal readonly struct LineVertex(float x, float y, float z, float nx, float ny, float nz) : IVertex
+internal readonly struct LineVertex(float x, float y, float nx, float ny, float blend) : IVertex
 {
-    public readonly Vector3 Position = new(x, y, z);
-    public readonly Vector3 Normal = new(nx, ny, nz);
+    public readonly Vector3 Position = new(x, y, 0f);
+    public readonly Vector3 Normal = new(nx, ny, 0f);
+    public readonly float Texcoord = blend;
 
-    public static VertexFormat Format => VertexFormat.Position | VertexFormat.Normal;
+    public static VertexFormat Format => VertexFormat.Position | VertexFormat.Normal | VertexFormat.Texture1;
     public static uint Size => (uint)Marshal.SizeOf<LineVertex>();
 }
 

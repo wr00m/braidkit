@@ -6,12 +6,13 @@ struct VS_INPUT
 {
     float3 position : POSITION;
     float3 normal   : NORMAL; // Vertex offset direction
+    float texcoord  : TEXCOORD0;
 };
 
 struct VS_OUTPUT
 {
-    float4 position : POSITION;
-    float blend: TEXCOORD0;
+    float4 position : SV_POSITION;
+    float blend     : TEXCOORD0;
 };
 
 VS_OUTPUT VertexShaderMain(VS_INPUT input)
@@ -22,7 +23,7 @@ VS_OUTPUT VertexShaderMain(VS_INPUT input)
 
     VS_OUTPUT output;
     output.position = pos;
-    output.blend = length(input.normal);
+    output.blend = input.texcoord;
     return output;
 }
 

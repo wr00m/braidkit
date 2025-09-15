@@ -2,7 +2,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using Vortice.Direct3D9;
 
 namespace BraidKit.Inject.Rendering;
@@ -14,20 +13,6 @@ internal static class Direct3DExtensions
         var vtable = *(IntPtr**)device.NativePointer;
         var endScenePtr = vtable[42];
         return endScenePtr;
-    }
-
-    public static unsafe void RenderTriangles<TVertex>(this IDirect3DDevice9 device, List<TVertex> verts) where TVertex : unmanaged, IVertex
-    {
-        device.VertexFormat = TVertex.Format;
-        fixed (TVertex* ptr = CollectionsMarshal.AsSpan(verts))
-            device.DrawPrimitiveUP(PrimitiveType.TriangleList, (uint)verts.Count / 3, (nint)ptr, TVertex.Size);
-    }
-
-    public static void RenderTriangleStrip<TVertex>(this IDirect3DDevice9 device, TriangleStrip<TVertex> triStrip) where TVertex : unmanaged, IVertex
-    {
-        device.SetStreamSource(0, triStrip._vertexBuffer, 0, triStrip.Stride);
-        device.VertexFormat = triStrip.VertexFormat;
-        device.DrawPrimitive(PrimitiveType.TriangleStrip, 0, triStrip.PrimitiveCount);
     }
 
     public static IDirect3DTexture9 LoadTexture(this IDirect3DDevice9 device, string textureFilename)

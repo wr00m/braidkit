@@ -20,6 +20,7 @@ public class Entity(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr)
     private GameValue<int> SupportedByPortableId { get; } = new(_processMemoryHandler, _addr + 0x78);
     public Vector2 Center => new(PositionX, PositionY + Height * .5f);
     public Vector2 Size => new(Width, Height);
+    public bool IsClimbable => EntityFlags.Value.HasFlag(Game.EntityFlags.Climbable);
 
     public void DetachFromGround() => SupportedByPortableId.Value = 0;
 
@@ -75,7 +76,7 @@ public class GreeterEntity(ProcessMemoryHandler _processMemoryHandler, IntPtr _a
 [Flags]
 public enum EntityFlags : uint
 {
-    // TODO: Identify more entity flags
+    // TODO: Identify more entity flags (0x2, 0x8, 0x400000, 0x1000000, etc.)
     Hidden = 0x1,
     Immovable = 0x4,
     CollidablePlatformOrProjectile = 0x10,
@@ -85,7 +86,7 @@ public enum EntityFlags : uint
     NoGravity = 0x4000,
     RectangularCollider = 0x8000,
     PurpleGlow = 0x10000,
-    // TODO: 0x2000000u is apparently something
+    Climbing = 0x2000000, // TODO: Is this correct?
 }
 
 /// <summary>Hex values are vtable memory addresses</summary>
@@ -137,7 +138,7 @@ public enum EntityType
     Surface = 0x0057dd40,
     Switch = 0x0057dd70, // Lever
     Text = 0x0057964c,
-    Tiler = 0x0057de78,
+    Tiler = 0x0057de78, // Ladder or platform
 }
 
 public static class EntityHelper

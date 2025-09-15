@@ -34,14 +34,7 @@ internal static class Bootstrapper
     public static int Render(IntPtr argsAddr, int _)
     {
         // Load argument struct from unmanaged memory
-        var renderSettings = Marshal.PtrToStructure<RenderSettings>(argsAddr);
-
-        _gameRenderer.RenderColliders = renderSettings.RenderColliders;
-        _gameRenderer.RenderVelocity = renderSettings.RenderVelocity;
-        _gameRenderer.LineWidth = renderSettings.LineWidth;
-        _gameRenderer.FontSize = renderSettings.FontSize;
-        _gameRenderer.FontColor = new(renderSettings.FontColor);
-
-        return _gameRenderer.IsRenderingActive ? 1 : 0;
+        _gameRenderer.RenderSettings = Marshal.PtrToStructure<RenderSettings>(argsAddr);
+        return _gameRenderer.RenderSettings.IsRenderingActive() ? 1 : 0;
     }
 }

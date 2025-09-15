@@ -10,19 +10,23 @@ internal static partial class Commands
     private static Command RenderOverlayCommand =>
         new Command("render-overlay", "Renders in-game debug overlay (experimental)")
         {
-            new Option<bool>("--colliders", "-c") { Description = "Show collision geometry", DefaultValueFactory = _ => RenderSettings.DefaultRenderColliders },
-            new Option<bool>("--velocity", "-v") { Description = "Show Tim's velocity", DefaultValueFactory = _ => RenderSettings.DefaultRenderVelocity },
+            new Option<bool>("--bounds", "-b") { Description = "Show entity bounds / collision geometry", DefaultValueFactory = _ => RenderSettings.DefaultRenderEntityBounds },
+            new Option<bool>("--centers", "-c") { Description = "Show entity centers", DefaultValueFactory = _ => RenderSettings.DefaultRenderEntityCenters },
+            new Option<bool>("--velocity", "-v") { Description = "Show Tim's velocity", DefaultValueFactory = _ => RenderSettings.DefaultRenderTimVelocity },
+            new Option<bool>("--all-entities", "-a") { Description = "Show bounds/centers for all entities", DefaultValueFactory = _ => RenderSettings.DefaultRenderAllEntities },
             new Option<float>("--line-width", "-l") { Description = "Geometry outline width", DefaultValueFactory = _ => RenderSettings.DefaultLineWidth },
-            new Option<float>("--font-size", "-f") { Description = "Font size", DefaultValueFactory = _ => RenderSettings.DefaultFontSize },
-            new Option<string>("--font-color") { Description = "Font color in RGBA hex format", DefaultValueFactory = _ => RgbaToHex(RenderSettings.DefaultFontColor) },
+            new Option<float>("--font-size", "-s") { Description = "Font size", DefaultValueFactory = _ => RenderSettings.DefaultFontSize },
+            new Option<string>("--font-color", "-f") { Description = "Font color in RGBA hex format", DefaultValueFactory = _ => RgbaToHex(RenderSettings.DefaultFontColor) },
             RenderOverlayResetCommand,
         }
         .SetBraidGameAction((braidGame, parseResult) =>
         {
             var renderSettings = new RenderSettings
             {
-                RenderColliders = parseResult.GetRequiredValue<bool>("--colliders"),
-                RenderVelocity = parseResult.GetRequiredValue<bool>("--velocity"),
+                RenderEntityBounds = parseResult.GetRequiredValue<bool>("--bounds"),
+                RenderEntityCenters = parseResult.GetRequiredValue<bool>("--centers"),
+                RenderTimVelocity = parseResult.GetRequiredValue<bool>("--velocity"),
+                RenderAllEntities = parseResult.GetRequiredValue<bool>("--all-entities"),
                 LineWidth = parseResult.GetRequiredValue<float>("--line-width"),
                 FontSize = parseResult.GetRequiredValue<float>("--font-size"),
                 FontColor = HexToRgba(parseResult.GetRequiredValue<string>("--font-color")),
@@ -38,8 +42,8 @@ internal static partial class Commands
         {
             var isRendering = braidGame.Process.InjectRenderer(new()
             {
-                RenderColliders = false,
-                RenderVelocity = false,
+                RenderEntityBounds = false,
+                RenderTimVelocity = false,
             });
             OutputRender(isRendering);
         });
