@@ -44,22 +44,22 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderText(string text, float x, float y, bool centerX, bool centerY, float fontSize, Color4 fontColor)
+    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color4 fontColor, bool flipY)
     {
         // Set world matrix
         var fontScale = fontSize / _font.Size;
-        var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateScale(fontScale, -fontScale, fontScale) * Matrix4x4.CreateTranslation(x, y, 0f));
+        var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateScale(fontScale, flipY ? -fontScale : fontScale, fontScale) * Matrix4x4.CreateTranslation(x, y, 0f));
         _device.SetVertexShaderConstant(VS_WorldMtx, worldMtx);
 
         // Set font color
         _device.SetPixelShaderConstant(PS_Color, [fontColor.ToVector4()]);
 
         // Get and render triangles
-        var triangles = new Primitives<FontVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, centerX, centerY), useVertexBuffer: false);
+        var triangles = new Primitives<FontVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY), useVertexBuffer: false);
         triangles.Render();
     }
 
-    private List<FontVertex> GetTriangleVertices(string text, bool centerX, bool centerY)
+    private List<FontVertex> GetTriangleVertices(string text, HAlign alignX, VAlign alignY)
     {
         var result = new List<FontVertex>(text.Length);
         var divWidth = 1f / _font.Width;
@@ -69,8 +69,22 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
-            var x = centerX ? _font.GetTextWidth(line) * -.5f : 0f;
-            var y = (centerY ? (i + 1f - lines.Length * .5f) : (i + 1f)) * _font.Size * _lineSpacing;
+
+            var x = alignX switch
+            {
+                HAlign.Left => 0f,
+                HAlign.Center => -.5f * _font.GetTextWidth(line),
+                HAlign.Right => -_font.GetTextWidth(line),
+                _ => throw new ArgumentOutOfRangeException(nameof(alignX), alignX, null),
+            };
+
+            var y = alignY switch
+            {
+                VAlign.Top => (i + 1f) * _font.Size * _lineSpacing,
+                VAlign.Middle => (i + 1f - .5f * lines.Length) * _font.Size * _lineSpacing,
+                VAlign.Bottom => (i + 1f - lines.Length) * _font.Size * _lineSpacing,
+                _ => throw new ArgumentOutOfRangeException(nameof(alignX), alignX, null),
+            };
 
             foreach (var @char in line)
             {
@@ -112,3 +126,6 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         return result;
     }
 }
+
+public enum VAlign { Top, Middle, Bottom }
+public enum HAlign { Left, Center, Right }

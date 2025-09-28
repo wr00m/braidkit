@@ -60,6 +60,8 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     public GameValue<float> CameraPositionY { get; } = new(_processMemoryHandler, 0x5f6ac0);
     public GameValue<int> IdealWidth { get; } = new(_processMemoryHandler, 0x5f6a90, 1280);
     public GameValue<int> IdealHeight { get; } = new(_processMemoryHandler, 0x5f6a94, 720);
+    public int ScreenWidth => 1920; // TODO: Read from game process memory
+    public int ScreenHeight => 1080; // TODO: Read from game process memory
 
     public float Zoom
     {

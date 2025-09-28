@@ -33,10 +33,17 @@ internal static class CommandHelper
         return cmd;
     }
 
-    internal static Argument<TEnum> FormatEnumArgumentHelp<TEnum>(this Argument<TEnum> arg) where TEnum : struct, Enum
+    internal static Argument<TEnum> FormatEnumHelp<TEnum>(this Argument<TEnum> arg) where TEnum : struct, Enum
     {
         arg.HelpName = arg.Name;
         arg.Description = string.Join("|", Enum.GetValues<TEnum>().Select(x => x.ToString().ToLowerInvariant()).OrderBy(x => x));
+        return arg;
+    }
+
+    internal static Option<TEnum> FormatEnumHelp<TEnum>(this Option<TEnum> arg, string helpName = "value") where TEnum : struct, Enum
+    {
+        arg.HelpName = helpName;
+        arg.Description = $"{arg.Description} ({string.Join("|", Enum.GetValues<TEnum>().Select(x => x.ToString().ToLowerInvariant()).OrderBy(x => x))})";
         return arg;
     }
 }

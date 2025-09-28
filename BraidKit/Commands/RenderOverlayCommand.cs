@@ -12,7 +12,7 @@ internal static partial class Commands
         {
             new Option<bool>("--bounds", "-b") { Description = "Show entity bounds / collision geometry", DefaultValueFactory = _ => RenderSettings.DefaultRenderEntityBounds },
             new Option<bool>("--centers", "-c") { Description = "Show entity centers", DefaultValueFactory = _ => RenderSettings.DefaultRenderEntityCenters },
-            new Option<bool>("--velocity", "-v") { Description = "Show Tim's velocity", DefaultValueFactory = _ => RenderSettings.DefaultRenderTimVelocity },
+            new Option<TextPosition>("--velocity", "-v") { Description = "Show Tim's velocity", DefaultValueFactory = _ => RenderSettings.DefaultRenderTimVelocity }.FormatEnumHelp("renderpos"),
             new Option<bool>("--all-entities", "-a") { Description = "Show bounds/centers for all entities", DefaultValueFactory = _ => RenderSettings.DefaultRenderAllEntities },
             new Option<float>("--line-width", "-l") { Description = "Geometry outline width", DefaultValueFactory = _ => RenderSettings.DefaultLineWidth },
             new Option<float>("--font-size", "-s") { Description = "Font size", DefaultValueFactory = _ => RenderSettings.DefaultFontSize },
@@ -26,7 +26,7 @@ internal static partial class Commands
             {
                 RenderEntityBounds = parseResult.GetRequiredValue<bool>("--bounds"),
                 RenderEntityCenters = parseResult.GetRequiredValue<bool>("--centers"),
-                RenderTimVelocity = parseResult.GetRequiredValue<bool>("--velocity"),
+                RenderTimVelocity = parseResult.GetRequiredValue<TextPosition>("--velocity"),
                 RenderAllEntities = parseResult.GetRequiredValue<bool>("--all-entities"),
                 LineWidth = parseResult.GetRequiredValue<float>("--line-width"),
                 FontSize = parseResult.GetRequiredValue<float>("--font-size"),
@@ -45,7 +45,7 @@ internal static partial class Commands
             var isRendering = braidGame.Process.InjectRenderer(new()
             {
                 RenderEntityBounds = false,
-                RenderTimVelocity = false,
+                RenderTimVelocity = TextPosition.None,
             });
             OutputRender(isRendering);
         });

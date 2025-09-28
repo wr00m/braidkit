@@ -31,6 +31,14 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             0f,
             1f));
 
+        var screenMtx = Matrix4x4.Transpose(Matrix4x4.CreateOrthographicOffCenter(
+            0f,
+            _braidGame.ScreenWidth,
+            _braidGame.ScreenHeight,
+            0f,
+            0f,
+            1f));
+
         if (RenderSettings.RenderEntityBounds || RenderSettings.RenderEntityCenters)
         {
             _lineRenderer.Activate();
@@ -47,19 +55,55 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             }
         }
 
-        if (RenderSettings.RenderTimVelocity)
+        if (RenderSettings.RenderTimVelocity != TextPosition.None)
         {
+            var useWorldCoords = RenderSettings.RenderTimVelocity == TextPosition.BelowEntity;
+
             _textRenderer.Activate();
-            _textRenderer.SetViewProjectionMatrix(viewProjMtx);
+            _textRenderer.SetViewProjectionMatrix(useWorldCoords ? viewProjMtx : screenMtx);
 
             var tim = _braidGame.GetTim();
+
+            const float marginX = 10f;
+            var (alignX, textX) = RenderSettings.RenderTimVelocity switch
+            {
+                TextPosition.TopLeft or
+                TextPosition.MiddleLeft or
+                TextPosition.BottomLeft => (HAlign.Left, marginX),
+                TextPosition.TopCenter or
+                TextPosition.MiddleCenter or
+                TextPosition.BottomCenter => (HAlign.Center, _braidGame.ScreenWidth * .5f),
+                TextPosition.TopRight or
+                TextPosition.MiddleRight or
+                TextPosition.BottomRight => (HAlign.Right, _braidGame.ScreenWidth - marginX),
+                TextPosition.BelowEntity => (HAlign.Center, tim.PositionX),
+                _ => throw new ArgumentOutOfRangeException(nameof(RenderSettings.RenderTimVelocity), RenderSettings.RenderTimVelocity, null),
+            };
+
+            const float marginY = 7f;
+            var (alignY, textY) = RenderSettings.RenderTimVelocity switch
+            {
+                TextPosition.TopLeft or
+                TextPosition.TopCenter or
+                TextPosition.TopRight => (VAlign.Top, marginY),
+                TextPosition.MiddleLeft or
+                TextPosition.MiddleCenter or
+                TextPosition.MiddleRight => (VAlign.Middle, _braidGame.ScreenHeight * .5f),
+                TextPosition.BottomLeft or
+                TextPosition.BottomCenter or
+                TextPosition.BottomRight => (VAlign.Bottom, _braidGame.ScreenHeight - marginY),
+                TextPosition.BelowEntity => (VAlign.Top, tim.PositionY),
+                _ => throw new ArgumentOutOfRangeException(nameof(RenderSettings.RenderTimVelocity), RenderSettings.RenderTimVelocity, null),
+            };
+
             _textRenderer.RenderText($"velocity\nx={tim.VelocityX:0}\ny={tim.VelocityY:0}",
-                tim.PositionX,
-                tim.PositionY,
-                true,
-                false,
+                textX,
+                textY,
+                alignX,
+                alignY,
                 RenderSettings.FontSize,
-                new(RenderSettings.FontColor));
+                new(RenderSettings.FontColor),
+                useWorldCoords);
         }
     }
 
