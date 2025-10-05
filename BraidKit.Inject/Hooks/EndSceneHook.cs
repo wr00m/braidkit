@@ -5,9 +5,7 @@ using Vortice.Direct3D9;
 
 namespace BraidKit.Inject.Hooks;
 
-/// <summary>
-/// Callback hook for Direct3D's "end scene" function, which happens just before the next frame is rendered
-/// </summary>
+/// <summary>Callback hook for Direct3D's "end scene" function, which happens just before the next frame is rendered</summary>
 internal class EndSceneHook : IDisposable
 {
     private readonly IDirect3DDevice9 _device;
@@ -25,9 +23,9 @@ internal class EndSceneHook : IDisposable
         var endSceneAddr = _device.GetEndSceneAddr();
 
         // Setup hook/trampoline
-        var del = new EndSceneDelegate(HookedEndScene);
-        _gcHandle = GCHandle.Alloc(del); // Pin memory adress, or stuff will break during garbage collection
-        var hookFuncPtr = Marshal.GetFunctionPointerForDelegate(del);
+        var @delegate = new EndSceneDelegate(HookCallbackFunction);
+        _gcHandle = GCHandle.Alloc(@delegate); // Pin memory adress, or stuff will break during garbage collection
+        var hookFuncPtr = Marshal.GetFunctionPointerForDelegate(@delegate);
         _hookAction = hookAction;
         _jumpHook = JumpHook.Create(endSceneAddr, hookFuncPtr) ?? throw new Exception("Failed to create hook");
         _originalFunction = Marshal.GetDelegateForFunctionPointer<EndSceneDelegate>(_jumpHook.OriginalFunction);
@@ -39,7 +37,7 @@ internal class EndSceneHook : IDisposable
         _gcHandle.Free();
     }
 
-    private int HookedEndScene(IntPtr devicePtr)
+    private int HookCallbackFunction(IntPtr devicePtr)
     {
         // This check is probably unnecessary...
         if (devicePtr == _device.NativePointer)

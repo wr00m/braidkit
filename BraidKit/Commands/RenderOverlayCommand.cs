@@ -42,11 +42,7 @@ internal static partial class Commands
         new Command("reset", "Stops rendering in-game debug overlay")
         .SetBraidGameAction((braidGame, parseResult) =>
         {
-            var isRendering = braidGame.Process.InjectRenderer(new()
-            {
-                RenderEntityBounds = false,
-                RenderTimVelocity = TextPosition.None,
-            });
+            var isRendering = braidGame.Process.InjectRenderer(RenderSettings.Off);
             OutputRender(isRendering);
         });
 

@@ -33,8 +33,16 @@ internal static class Bootstrapper
     [STAThread]
     public static int Render(IntPtr argsAddr, int _)
     {
-        // Load argument struct from unmanaged memory
-        _gameRenderer.RenderSettings = Marshal.PtrToStructure<RenderSettings>(argsAddr);
-        return _gameRenderer.RenderSettings.IsRenderingActive() ? 1 : 0;
+        try
+        {
+            // Load argument struct from unmanaged memory
+            _gameRenderer.RenderSettings = Marshal.PtrToStructure<RenderSettings>(argsAddr);
+            return _gameRenderer.RenderSettings.IsRenderingActive() ? 1 : 0;
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(ex);
+            throw;
+        }
     }
 }

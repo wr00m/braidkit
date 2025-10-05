@@ -10,7 +10,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 {
     private readonly LineRenderer _lineRenderer = new(_device);
     private readonly TextRenderer _textRenderer = new(_device);
-    public RenderSettings RenderSettings { get; set; } = new();
+    public RenderSettings RenderSettings { get; set; } = RenderSettings.Off;
 
     public void Dispose()
     {
@@ -23,21 +23,27 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         if (!RenderSettings.IsRenderingActive() || _braidGame.InMainMenu || _braidGame.InPuzzleAssemblyScreen)
             return;
 
-        var viewProjMtx = Matrix4x4.Transpose(Matrix4x4.CreateOrthographicOffCenter(
+        var viewProjMtx = Matrix4x4.CreateOrthographicOffCenter(
             _braidGame.CameraPositionX,
             _braidGame.CameraPositionX + _braidGame.IdealWidth,
             _braidGame.CameraPositionY,
             _braidGame.CameraPositionY + _braidGame.IdealHeight,
             0f,
-            1f));
+            1f);
 
-        var screenMtx = Matrix4x4.Transpose(Matrix4x4.CreateOrthographicOffCenter(
+        var screenMtx = Matrix4x4.CreateOrthographicOffCenter(
             0f,
             _braidGame.ScreenWidth,
             _braidGame.ScreenHeight,
             0f,
             0f,
-            1f));
+            1f);
+
+        var worldToScreenMtx = Matrix4x4.Invert(screenMtx, out var inverted) ? viewProjMtx * inverted : throw new Exception($"Failed to invert {nameof(screenMtx)}");
+
+        // Transpose matrices for Direct3D
+        viewProjMtx = Matrix4x4.Transpose(viewProjMtx);
+        screenMtx = Matrix4x4.Transpose(screenMtx);
 
         if (RenderSettings.RenderEntityBounds || RenderSettings.RenderEntityCenters)
         {
@@ -55,14 +61,23 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             }
         }
 
+        if (RenderSettings.RenderBorder)
+        {
+            const float borderWidth = 1f;
+            var sw = _braidGame.ScreenWidth;
+            var sh = _braidGame.ScreenHeight;
+            _lineRenderer.Activate();
+            _lineRenderer.SetViewProjectionMatrix(screenMtx);
+            _lineRenderer.RenderRectangle(new(sw * .5f, sh * .5f), sw, sh, new(0x200000ff), borderWidth, 0f);
+        }
+
         if (RenderSettings.RenderTimVelocity != TextPosition.None)
         {
-            var useWorldCoords = RenderSettings.RenderTimVelocity == TextPosition.BelowEntity;
-
             _textRenderer.Activate();
-            _textRenderer.SetViewProjectionMatrix(useWorldCoords ? viewProjMtx : screenMtx);
+            _textRenderer.SetViewProjectionMatrix(screenMtx);
 
             var tim = _braidGame.GetTim();
+            var timScreenPos = Vector2.Transform(tim.Position, worldToScreenMtx);
 
             const float marginX = 10f;
             var (alignX, textX) = RenderSettings.RenderTimVelocity switch
@@ -76,7 +91,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 TextPosition.TopRight or
                 TextPosition.MiddleRight or
                 TextPosition.BottomRight => (HAlign.Right, _braidGame.ScreenWidth - marginX),
-                TextPosition.BelowEntity => (HAlign.Center, tim.PositionX),
+                TextPosition.BelowEntity => (HAlign.Center, timScreenPos.X),
                 _ => throw new ArgumentOutOfRangeException(nameof(RenderSettings.RenderTimVelocity), RenderSettings.RenderTimVelocity, null),
             };
 
@@ -92,7 +107,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 TextPosition.BottomLeft or
                 TextPosition.BottomCenter or
                 TextPosition.BottomRight => (VAlign.Bottom, _braidGame.ScreenHeight - marginY),
-                TextPosition.BelowEntity => (VAlign.Top, tim.PositionY),
+                TextPosition.BelowEntity => (VAlign.Top, timScreenPos.Y),
                 _ => throw new ArgumentOutOfRangeException(nameof(RenderSettings.RenderTimVelocity), RenderSettings.RenderTimVelocity, null),
             };
 
@@ -102,8 +117,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 alignX,
                 alignY,
                 RenderSettings.FontSize,
-                new(RenderSettings.FontColor),
-                useWorldCoords);
+                new(RenderSettings.FontColor));
         }
     }
 

@@ -18,6 +18,7 @@ public class Entity(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr)
     public GameValue<float> Height { get; } = new(_processMemoryHandler, _addr + 0x28);
     public GameValue<float> Theta { get; } = new(_processMemoryHandler, _addr + 0x38); // Rotation in degrees
     private GameValue<int> SupportedByPortableId { get; } = new(_processMemoryHandler, _addr + 0x78);
+    public Vector2 Position => new(PositionX, PositionY);
     public Vector2 Center => new(PositionX, PositionY + Height * .5f);
     public Vector2 Size => new(Width, Height);
     public bool IsClimbable => EntityFlags.Value.HasFlag(Game.EntityFlags.Climbable);
@@ -78,6 +79,7 @@ public enum EntityFlags : uint
 {
     // TODO: Identify more entity flags (0x2, 0x8, 0x400000, 0x1000000, etc.)
     Hidden = 0x1,
+    Grounded = 0x2,
     Immovable = 0x4,
     CollidablePlatformOrProjectile = 0x10,
     CollidableTerrain = 0x20,

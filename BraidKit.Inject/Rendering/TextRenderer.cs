@@ -44,7 +44,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color4 fontColor, bool flipY)
+    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color4 fontColor, bool flipY = false)
     {
         // Set world matrix
         var fontScale = fontSize / _font.Size;
