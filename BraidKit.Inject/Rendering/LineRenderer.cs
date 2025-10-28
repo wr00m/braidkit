@@ -63,8 +63,7 @@ internal class LineRenderer(IDirect3DDevice9 _device) : IDisposable
     private void RenderLine(Primitives<LineVertex> primitives, Vector2 center, Vector2 scale, Color4 color, float lineWidth, float angleDeg = 0f)
     {
         // Set world matrix
-        const float _degToRad = 0.017453292519943295f;
-        var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateRotationZ(angleDeg * _degToRad) * Matrix4x4.CreateTranslation(center.X, center.Y, 0f));
+        var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateRotationZ(MathHelper.DegreesToRadians(angleDeg)) * Matrix4x4.CreateTranslation(center.X, center.Y, 0f));
         _device.SetVertexShaderConstant(VS_WorldMtx, worldMtx);
 
         // Set line style

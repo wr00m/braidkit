@@ -10,17 +10,19 @@ public class Entity(ProcessMemoryHandler _processMemoryHandler, IntPtr _addr)
     public IntPtr Addr => _addr;
     public GameValue<EntityType> EntityType { get; } = new(_processMemoryHandler, _addr);
     public GameValue<EntityFlags> EntityFlags { get; } = new(_processMemoryHandler, _addr + 0x10);
+    public GameValue<int> PortableId { get; } = new(_processMemoryHandler, _addr + 0x4);
+    public GameValue<Vector2> Position { get; } = new(_processMemoryHandler, _addr + 0x14);
     public GameValue<float> PositionX { get; } = new(_processMemoryHandler, _addr + 0x14);
     public GameValue<float> PositionY { get; } = new(_processMemoryHandler, _addr + 0x18);
     public GameValue<float> VelocityX { get; } = new(_processMemoryHandler, _addr + 0x1c);
     public GameValue<float> VelocityY { get; } = new(_processMemoryHandler, _addr + 0x20);
-    public GameValue<float> Width { get; } = new(_processMemoryHandler, _addr + 0x24);
-    public GameValue<float> Height { get; } = new(_processMemoryHandler, _addr + 0x28);
+    public GameValue<Vector2> Size { get; } = new(_processMemoryHandler, _addr + 0x24);
+    public GameValue<float> Width { get; } = new(_processMemoryHandler, _addr + 0x24); // "width_in_pixels"
+    public GameValue<float> Height { get; } = new(_processMemoryHandler, _addr + 0x28); // "height_in_pixels"
+    public GameValue<bool> FacingLeft { get; } = new(_processMemoryHandler, _addr + 0x2c);
     public GameValue<float> Theta { get; } = new(_processMemoryHandler, _addr + 0x38); // Rotation in degrees
     private GameValue<int> SupportedByPortableId { get; } = new(_processMemoryHandler, _addr + 0x78);
-    public Vector2 Position => new(PositionX, PositionY);
     public Vector2 Center => new(PositionX, PositionY + Height * .5f);
-    public Vector2 Size => new(Width, Height);
     public bool IsClimbable => EntityFlags.Value.HasFlag(Game.EntityFlags.Climbable);
 
     public void DetachFromGround() => SupportedByPortableId.Value = 0;
@@ -147,3 +149,5 @@ public static class EntityHelper
 {
     public static Entity GetTim(this IEnumerable<Entity> entities) => entities.FirstOrDefault(x => x.EntityType == EntityType.Guy) ?? throw new Exception("Tim not found");
 }
+
+public record EntitySnapshot(int FrameIndex, int World, int Level, Vector2 Position, bool FacingLeft, int AnimationIndex, float AnimationTime);

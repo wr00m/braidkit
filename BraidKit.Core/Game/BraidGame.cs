@@ -1,5 +1,8 @@
-﻿using System.Diagnostics;
-using BraidKit.Core.MemoryAccess;
+﻿using BraidKit.Core.MemoryAccess;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
+using System.Numerics;
 
 namespace BraidKit.Core.Game;
 
@@ -56,6 +59,7 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
         set => CameraLockX = CameraLockY = value;
     }
 
+    public GameValue<Vector2> CameraPosition { get; } = new(_processMemoryHandler, 0x5f6abc);
     public GameValue<float> CameraPositionX { get; } = new(_processMemoryHandler, 0x5f6abc);
     public GameValue<float> CameraPositionY { get; } = new(_processMemoryHandler, 0x5f6ac0);
     public GameValue<int> IdealWidth { get; } = new(_processMemoryHandler, 0x5f6a90, 1280);
@@ -145,10 +149,12 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
         return entities;
     }
 
+    public bool TryGetTim([NotNullWhen(true)] out Entity? entity) => (entity = GetTimOrNull()) != null;
     public Entity? GetTimOrNull() => GetEntitiesByPortableType(PortableTypeAddr.Guy).FirstOrDefault();
     public Entity GetTim() => GetTimOrNull() ?? throw new Exception("Where's Tim?");
     public GreeterEntity? GetDinosaurAkaGreeter() => GetEntitiesByPortableType(PortableTypeAddr.Greeter).FirstOrDefault()?.AsGreeter();
     public List<Entity> GetPuzzleFrames() => GetEntitiesByPortableType(PortableTypeAddr.PuzzleFrame).ToList();
+    public GameValue<SpriteAnimationSet> TimSpriteAnimationSet = new(_processMemoryHandler, _processMemoryHandler.Read<IntPtr>(0x5f71e4));
 
     public void ResetPieces()
     {
@@ -156,11 +162,119 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
         const IntPtr _worldPuzzlePieceOffset = 0x18c;
         const IntPtr _individualPuzzlePieceOffset = 0x20;
 
-        // Note: Pieces in current level don't reset properly, but maybe that's a good thing for IL speedrunning
+        // Note: Pieces in current level don't reset, but maybe that's good since we don't want to reset pieces during level fadeout
         for (int world = 0; world < 5; world++)
             for (int piece = 0; piece < 12; piece++)
                 // TODO: Write<byte>?
                 _processMemoryHandler.Write(_initialPuzzlePieceAddr + _worldPuzzlePieceOffset * world + _individualPuzzlePieceOffset * piece, 0);
+    }
+
+    public bool TryGetTimSprite(EntitySnapshot entity, out RectangleF world, out RectangleF uv, out IntPtr textureMapAddr)
+    {
+        var animationSet = TimSpriteAnimationSet.Value;
+        if (entity.AnimationIndex < 0 || entity.AnimationIndex >= animationSet.NumAnimations)
+        {
+            world = RectangleF.Empty;
+            uv = RectangleF.Empty;
+            textureMapAddr = IntPtr.Zero;
+            return false;
+        }
+
+        var animationAddr = _processMemoryHandler.Read<IntPtr>(animationSet.AnimationArray + sizeof(int) * entity.AnimationIndex);
+        var animation = _processMemoryHandler.Read<SpriteAnimation>(animationAddr);
+
+        // TODO: Frame index is a bit off compared to original Tim entity, should be fixed
+        var normTime = animation.Duration > 0f ? entity.AnimationTime / animation.Duration : 0f; // Normalize time
+        normTime = (normTime % 1f + 1f) % 1f; // Repeat time [0..1)
+        var frameIndex = (int)(normTime * animation.NumFrames); // [0..NumFrames-1]
+        var frame = _processMemoryHandler.Read<SpriteAnimationFrame>(animation.FrameArray + 0x24 * frameIndex);
+
+        textureMapAddr = animationSet.TextureMap;
+        var textureMap = _processMemoryHandler.Read<TextureMap>(textureMapAddr);
+        var divSize = new Vector2(1f / textureMap.Width, 1f / textureMap.Height);
+
+        var pos = entity.Position;
+        var originX = frame.OriginOffset.X;
+        if (entity.FacingLeft)
+            originX = frame.Width - originX;
+        var uv0 = new Vector2(frame.X0, frame.Y0) * divSize;
+        var uvSize = new Vector2(frame.Width, frame.Height) * divSize;
+        world = new(pos.X - originX, pos.Y - frame.OriginOffset.Y, frame.Width, frame.Height);
+        uv = new(uv0.X, uv0.Y, uvSize.X, uvSize.Y);
+
+        if (entity.FacingLeft)
+            uv = new(uv.Right, uv.Y, -uv.Width, uv.Height); // Flip x-axis (mirrored with negative width)
+
+        return true;
+    }
+
+    public bool TryCreateTimGameQuad(EntitySnapshot entity, out GameQuad result, uint scaleColor = 0xffffffff)
+    {
+        if (!TryGetTimSprite(entity, out var world, out var uv, out var textureMapAddr))
+        {
+            result = default;
+            return false;
+        }
+
+        var camPos = CameraPosition.Value;
+        Vector3 WorldToView(Vector2 pos) => new(pos - camPos, .5f);
+
+        result = new()
+        {
+            RenderPriority = .1f, // Render behind normal Tim
+            Parallax = 1,
+            PortableId = -1,
+            Pos0 = WorldToView(new(world.Left, world.Bottom)),
+            Pos1 = WorldToView(new(world.Right, world.Bottom)),
+            Pos2 = WorldToView(new(world.Right, world.Top)),
+            Pos3 = WorldToView(new(world.Left, world.Top)),
+            UV0 = new(uv.Left, uv.Bottom),
+            UV1 = new(uv.Right, uv.Bottom),
+            UV2 = new(uv.Right, uv.Top),
+            UV3 = new(uv.Left, uv.Top),
+            TextureMap = textureMapAddr,
+            PiecedImage = IntPtr.Zero,
+            Flags = default,
+            ScaleColor = scaleColor,
+            AddColor = default,
+            CompandScale = 1,
+        };
+
+        return true;
+    }
+
+    public GameValue<int> NumGameQuads = new(_processMemoryHandler, 0x63f5f0);
+
+    public void AddGameQuad(GameQuad gameQuad)
+    {
+        var numGameQuads = NumGameQuads.Value;
+
+        const int maxGameQuads = 40000;
+        if (numGameQuads >= maxGameQuads)
+            return;
+
+        var gameQuadAddr = GetGameQuadAddress(numGameQuads);
+        _processMemoryHandler.Write(gameQuadAddr, gameQuad);
+
+        var gameQuadPointerAddr = GetGameQuadPointerAddress(numGameQuads);
+        _processMemoryHandler.Write(gameQuadPointerAddr, gameQuadAddr);
+
+        NumGameQuads.Value = numGameQuads + 1;
+    }
+
+    private static IntPtr GetGameQuadAddress(int index)
+    {
+        const int _gameQuadBytes = 0x74;
+        const IntPtr gameQuadArrayAddr = 0x666748;
+        var gameQuadAddr = gameQuadArrayAddr + _gameQuadBytes * index;
+        return gameQuadAddr;
+    }
+
+    private static IntPtr GetGameQuadPointerAddress(int index)
+    {
+        const IntPtr gameQuadPointerArrayAddr = 0x63f610;
+        var gameQuadPointerAddr = gameQuadPointerArrayAddr + sizeof(int) * index;
+        return gameQuadPointerAddr;
     }
 }
 

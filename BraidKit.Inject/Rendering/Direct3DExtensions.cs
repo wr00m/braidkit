@@ -49,13 +49,13 @@ internal static class Direct3DExtensions
         return texture;
     }
 
-    public static Format ToDirect3DFormat(this PixelFormat pixelFormat) => pixelFormat switch
+    private static Format ToDirect3DFormat(this PixelFormat pixelFormat) => pixelFormat switch
     {
         PixelFormat.Format32bppArgb => Format.A8R8G8B8,
         _ => throw new ArgumentOutOfRangeException(nameof(pixelFormat), pixelFormat, null),
     };
 
-    public static int GetBytesPerPixel(this PixelFormat pixelFormat) => pixelFormat switch
+    private static int GetBytesPerPixel(this PixelFormat pixelFormat) => pixelFormat switch
     {
         PixelFormat.Format32bppArgb => 4,
         _ => throw new ArgumentOutOfRangeException(nameof(pixelFormat), pixelFormat, null),

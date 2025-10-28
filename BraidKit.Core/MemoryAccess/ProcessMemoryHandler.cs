@@ -24,9 +24,10 @@ public class ProcessMemoryHandler : IDisposable
     public void WriteBytes(IntPtr addr, byte[] bytes) => WriteProcessMemory(_hProc, addr, bytes, (uint)bytes.Length, out var _);
     public void CallFunction(IntPtr addr) => CreateRemoteThread(_hProc, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, out _);
 
-    public string ReadNullTerminatedString(IntPtr addr)
+    public string ReadNullTerminatedString(IntPtr addr, bool isPointer = true)
     {
-        addr = Read<int>(addr);
+        if (isPointer)
+            addr = Read<int>(addr);
         var result = "";
         for (var i = 0; true; i++)
         {
