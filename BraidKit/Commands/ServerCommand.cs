@@ -1,0 +1,536 @@
+﻿using BraidKit.Core;
+using BraidKit.Core.Game;
+using BraidKit.Core.Helpers;
+using BraidKit.Core.Network;
+using InjectDotnet;
+using System.Collections.Immutable;
+using System.CommandLine;
+using System.Diagnostics;
+using System.Drawing;
+
+namespace BraidKit.Commands;
+
+internal static partial class Commands
+{
+    private const int _defaultPort = 55555;
+
+    public static Command ServerCommand =>
+        new Command("server", "Hosts a multiplayer server")
+        {
+            ServerJoinCommand,
+            ServerJoinTestCommand,
+            new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
+        }
+        .SetBraidGameAction(parseResult =>
+        {
+            var port = parseResult.GetRequiredValue<int>("--port");
+
+            using var cancellationTokenSource = new CancellationTokenSource();
+            using var _ = new ConsoleCancelAction(() => cancellationTokenSource.Cancel());
+
+            using var server = new Server(port);
+
+            WaitHandle.WaitAny([cancellationTokenSource.Token.WaitHandle]);
+        });
+
+    private static Command ServerJoinCommand =>
+        new Command("join", "Joins a multiplayer server")
+        {
+            new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => "127.0.0.1" },
+            new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
+            new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
+            new Option<KnownColor>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => default }.FormatEnumHelp("color"),
+        }
+        .SetBraidGameAction((braidGame, parseResult) =>
+        {
+            var serverAddress = parseResult.GetRequiredValue<string>("--address");
+            var serverPort = parseResult.GetRequiredValue<int>("--port");
+            var playerName = parseResult.GetRequiredValue<string>("--name");
+            var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
+
+            var joinedServer = braidGame.Process.InjectJoinServer(new()
+            {
+                ServerAddress = braidGame.Process.WriteMemory(serverAddress),
+                ServerPort = serverPort,
+                PlayerName = playerName,
+                PlayerColor = playerColor,
+            });
+
+            if (joinedServer)
+                Console.WriteLine($"Joined server");
+            else
+                Console.WriteLine($"Failed to join server");
+
+        });
+
+    private static Command ServerJoinTestCommand =>
+        new Command("join-test", "Joins a multiplayer server with test data")
+        {
+            new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => "127.0.0.1" },
+            new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
+            new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
+            new Option<KnownColor>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => default }.FormatEnumHelp("color"),
+            new Option<int>("--latency", "-l") { Description = "Simulated latency cap in milliseconds", DefaultValueFactory = _ => 0 },
+        }
+        .SetHidden(true)
+        .SetBraidGameAction(async parseResult =>
+        {
+            var serverAddress = parseResult.GetRequiredValue<string>("--address");
+            var serverPort = parseResult.GetRequiredValue<int>("--port");
+            var playerName = parseResult.GetRequiredValue<string>("--name");
+            var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
+            var latency = parseResult.GetRequiredValue<int>("--latency");
+
+            if (!UdpHelper.TryResolveIPAdress(serverAddress, out var serverIP))
+            {
+                ConsoleHelper.WriteError($"Invalid server IP address or hostname: {serverAddress}");
+                return;
+            }
+
+            using var cancellationTokenSource = new CancellationTokenSource();
+            using var __ = new ConsoleCancelAction(() => cancellationTokenSource.Cancel());
+
+            using var client = new Client(serverIP, serverPort);
+            var connected = await client.ConnectToServer(playerName, playerColor, cancellationTokenSource.Token);
+
+            if (!connected)
+            {
+                ConsoleHelper.WriteError("Failed to connect to server");
+                return;
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            const double fps = 60.0;
+            var random = new Random();
+
+            while (!cancellationTokenSource.IsCancellationRequested)
+            {
+                var frameIndex = (int)Math.Floor(stopwatch.Elapsed.TotalSeconds * fps);
+                var snapshot = _testAnimation[frameIndex % _testAnimation.Count] with { FrameIndex = frameIndex };
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(random.Next(latency));
+                    client.SendPlayerStateUpdate(17, snapshot);
+                });
+                await Task.Delay(10);
+            }
+
+            WaitHandle.WaitAny([cancellationTokenSource.Token.WaitHandle]);
+        });
+
+    private static readonly ImmutableList<EntitySnapshot> _testAnimation = [
+        new(62, 0, 0, new(4133.009f, 84f), true, 1, 0.5384f),
+        new(63, 0, 0, new(4132.4087f, 84f), true, 1, 0.5468f),
+        new(64, 0, 0, new(4131.609f, 84f), true, 1, 0.558f),
+        new(65, 0, 0, new(4130.609f, 84f), true, 1, 0.572f),
+        new(66, 0, 0, new(4129.4087f, 84f), true, 1, 0.5888f),
+        new(67, 0, 0, new(4128.009f, 84f), true, 1, 0.6084f),
+        new(68, 0, 0, new(4126.4087f, 84f), true, 1, 0.6308f),
+        new(69, 0, 0, new(4124.609f, 84f), true, 1, 0.656f),
+        new(70, 0, 0, new(4122.609f, 84f), true, 1, 0.684f),
+        new(71, 0, 0, new(4120.4087f, 84f), true, 1, 0.7148f),
+        new(72, 0, 0, new(4118.009f, 84f), true, 1, 0.7484f),
+        new(73, 0, 0, new(4115.4087f, 84f), true, 1, 0.7848f),
+        new(74, 0, 0, new(4112.609f, 84f), true, 1, 0.824f),
+        new(75, 0, 0, new(4109.609f, 84f), true, 1, 0.866f),
+        new(76, 0, 0, new(4106.4087f, 84f), true, 1, 0.9108f),
+        new(77, 0, 0, new(4103.009f, 84f), true, 1, 0.9584f),
+        new(78, 0, 0, new(4099.4087f, 84f), true, 1, 1.0088f),
+        new(79, 0, 0, new(4095.6086f, 84f), true, 1, 1.062f),
+        new(80, 0, 0, new(4091.6086f, 84f), true, 1, 1.118f),
+        new(81, 0, 0, new(4087.6086f, 84f), true, 1, 1.174f),
+        new(82, 0, 0, new(4083.6086f, 84f), true, 1, 1.23f),
+        new(83, 0, 0, new(4079.6086f, 84f), true, 1, 1.286f),
+        new(84, 0, 0, new(4075.6086f, 84f), true, 1, 1.342f),
+        new(85, 0, 0, new(4071.6086f, 84f), true, 1, 1.398f),
+        new(86, 0, 0, new(4067.6086f, 84f), true, 1, 1.454f),
+        new(87, 0, 0, new(4063.6086f, 84f), true, 1, 1.51f),
+        new(88, 0, 0, new(4059.6086f, 84f), true, 1, 1.566f),
+        new(89, 0, 0, new(4055.6086f, 84f), true, 1, 1.622f),
+        new(90, 0, 0, new(4051.6086f, 84f), true, 1, 1.678f),
+        new(91, 0, 0, new(4047.6086f, 84f), true, 1, 1.734f),
+        new(92, 0, 0, new(4043.6086f, 84f), true, 1, 1.79f),
+        new(93, 0, 0, new(4039.6086f, 84f), true, 1, 1.846f),
+        new(94, 0, 0, new(4035.6086f, 84f), true, 1, 1.902f),
+        new(95, 0, 0, new(4031.6086f, 84f), true, 1, 1.958f),
+        new(96, 0, 0, new(4027.6086f, 84f), true, 1, 2.014f),
+        new(97, 0, 0, new(4023.6086f, 84f), true, 1, 2.07f),
+        new(98, 0, 0, new(4019.6086f, 84f), true, 1, 2.126f),
+        new(99, 0, 0, new(4015.6086f, 84f), true, 1, 2.182f),
+        new(100, 0, 0, new(4011.6086f, 84f), true, 1, 2.238f),
+        new(101, 0, 0, new(4007.6086f, 84f), true, 1, 2.294f),
+        new(102, 0, 0, new(4003.6086f, 84f), true, 1, 2.35f),
+        new(103, 0, 0, new(3999.6086f, 84f), true, 1, 2.406f),
+        new(104, 0, 0, new(3995.6086f, 84f), true, 1, 2.462f),
+        new(105, 0, 0, new(3991.6086f, 84f), true, 1, 2.518f),
+        new(106, 0, 0, new(3987.6086f, 84f), true, 1, 2.574f),
+        new(107, 0, 0, new(3983.6086f, 84f), true, 1, 2.63f),
+        new(108, 0, 0, new(3979.6086f, 84f), true, 1, 2.686f),
+        new(109, 0, 0, new(3975.6086f, 84f), true, 1, 2.742f),
+        new(110, 0, 0, new(3971.6086f, 84f), true, 1, 2.798f),
+        new(111, 0, 0, new(3967.6086f, 84f), true, 1, 2.854f),
+        new(112, 0, 0, new(3963.6086f, 84f), true, 1, 2.91f),
+        new(113, 0, 0, new(3959.6086f, 84f), true, 1, 2.966f),
+        new(114, 0, 0, new(3955.6086f, 84f), true, 1, 3.022f),
+        new(115, 0, 0, new(3951.6086f, 84f), true, 1, 3.078f),
+        new(116, 0, 0, new(3947.6086f, 84f), true, 1, 3.134f),
+        new(117, 0, 0, new(3943.6086f, 84f), true, 1, 3.19f),
+        new(118, 0, 0, new(3939.6086f, 84f), true, 1, 3.246f),
+        new(119, 0, 0, new(3935.6086f, 84f), true, 1, 3.302f),
+        new(120, 0, 0, new(3931.6086f, 84f), true, 1, 3.358f),
+        new(121, 0, 0, new(3927.6086f, 84f), true, 1, 3.414f),
+        new(122, 0, 0, new(3923.6086f, 84f), true, 1, 3.47f),
+        new(123, 0, 0, new(3919.6086f, 84f), true, 1, 3.526f),
+        new(124, 0, 0, new(3915.6086f, 84f), true, 1, 3.582f),
+        new(125, 0, 0, new(3911.6086f, 84f), true, 1, 3.638f),
+        new(126, 0, 0, new(3907.6086f, 84f), true, 1, 3.694f),
+        new(127, 0, 0, new(3903.6086f, 84f), true, 1, 3.75f),
+        new(128, 0, 0, new(3899.6086f, 84f), true, 1, 3.806f),
+        new(129, 0, 0, new(3895.6086f, 84f), true, 1, 3.862f),
+        new(130, 0, 0, new(3891.6086f, 84f), true, 1, 3.918f),
+        new(131, 0, 0, new(3887.6086f, 84f), true, 1, 3.974f),
+        new(132, 0, 0, new(3883.6086f, 84f), true, 1, 4.03f),
+        new(133, 0, 0, new(3879.6086f, 84f), true, 1, 4.086f),
+        new(134, 0, 0, new(3875.6086f, 84f), true, 1, 4.142f),
+        new(135, 0, 0, new(3871.6086f, 84f), true, 1, 4.198f),
+        new(136, 0, 0, new(3867.6086f, 84f), true, 1, 4.254f),
+        new(137, 0, 0, new(3863.6086f, 84f), true, 1, 4.31f),
+        new(138, 0, 0, new(3859.6086f, 84f), true, 1, 4.366f),
+        new(139, 0, 0, new(3855.6086f, 85f), true, 2, 0.02f),
+        new(140, 0, 0, new(3851.6086f, 92.022224f), true, 2, 0.04f),
+        new(141, 0, 0, new(3847.6086f, 98.688896f), true, 2, 0.06f),
+        new(142, 0, 0, new(3843.6086f, 105.00002f), true, 2, 0.08f),
+        new(143, 0, 0, new(3839.6086f, 110.9556f), true, 2, 0.1f),
+        new(144, 0, 0, new(3835.6086f, 116.55562f), true, 2, 0.12f),
+        new(145, 0, 0, new(3831.6086f, 121.80009f), true, 2, 0.14f),
+        new(146, 0, 0, new(3827.6086f, 126.689f), true, 2, 0.16f),
+        new(147, 0, 0, new(3823.6086f, 131.22237f), true, 2, 0.18f),
+        new(148, 0, 0, new(3819.6086f, 135.40018f), true, 2, 0.2f),
+        new(149, 0, 0, new(3815.6086f, 139.22243f), true, 2, 0.22f),
+        new(150, 0, 0, new(3811.6086f, 142.68913f), true, 2, 0.24f),
+        new(151, 0, 0, new(3807.6086f, 145.80028f), true, 11, 0.1333f),
+        new(152, 0, 0, new(3803.6086f, 148.55588f), true, 11, 0.1778f),
+        new(153, 0, 0, new(3799.6086f, 150.95592f), true, 11, 0.2222f),
+        new(154, 0, 0, new(3795f, 157.56642f), false, 5, 4.7762f),
+        new(155, 0, 0, new(3795f, 161.03242f), false, 5, 4.8303f),
+        new(156, 0, 0, new(3795f, 164.49843f), false, 5, 4.8845f),
+        new(157, 0, 0, new(3795f, 167.96443f), false, 5, 4.9386f),
+        new(158, 0, 0, new(3795f, 171.43044f), false, 5, 4.9928f),
+        new(159, 0, 0, new(3795f, 174.89644f), false, 5, 5.0469f),
+        new(160, 0, 0, new(3795f, 178.36244f), false, 5, 5.1011f),
+        new(161, 0, 0, new(3795f, 181.82845f), false, 5, 5.1553f),
+        new(162, 0, 0, new(3795f, 185.29445f), false, 5, 5.2094f),
+        new(163, 0, 0, new(3795f, 188.76045f), false, 5, 5.2636f),
+        new(164, 0, 0, new(3795f, 192.22646f), false, 5, 5.3177f),
+        new(165, 0, 0, new(3795f, 195.69246f), false, 5, 5.3719f),
+        new(166, 0, 0, new(3795f, 199.15846f), false, 5, 5.426f),
+        new(167, 0, 0, new(3795f, 202.62447f), false, 5, 5.4802f),
+        new(168, 0, 0, new(3795f, 206.09047f), false, 5, 5.5343f),
+        new(169, 0, 0, new(3795f, 209.55647f), false, 5, 5.5885f),
+        new(170, 0, 0, new(3795f, 213.02248f), false, 5, 5.6427f),
+        new(171, 0, 0, new(3795f, 216.48848f), false, 5, 5.6968f),
+        new(172, 0, 0, new(3795f, 216.48848f), true, 11, 0.5f),
+        new(173, 0, 0, new(3793.4f, 216.3107f), true, 11, 0.5444f),
+        new(174, 0, 0, new(3791.5867f, 215.77737f), true, 11, 0.5889f),
+        new(175, 0, 0, new(3789.56f, 214.88849f), true, 11, 0.6333f),
+        new(176, 0, 0, new(3787.32f, 213.64406f), true, 11, 0.6778f),
+        new(177, 0, 0, new(3784.8667f, 212.04407f), true, 11, 0.7222f),
+        new(178, 0, 0, new(3782.2f, 210.08853f), true, 11, 0.7667f),
+        new(179, 0, 0, new(3779.32f, 207.77744f), true, 11, 0.8111f),
+        new(180, 0, 0, new(3776.2268f, 204f), true, 1, 5.8368f),
+        new(181, 0, 0, new(3772.9336f, 204f), true, 1, 5.8829f),
+        new(182, 0, 0, new(3769.4402f, 204f), true, 1, 5.9318f),
+        new(183, 0, 0, new(3765.7468f, 204f), true, 1, 5.9835f),
+        new(184, 0, 0, new(3761.8535f, 204f), true, 1, 6.038f),
+        new(185, 0, 0, new(3757.8535f, 204f), true, 1, 6.094f),
+        new(186, 0, 0, new(3753.8535f, 202.5f), true, 1, 6.15f),
+        new(187, 0, 0, new(3749.8535f, 202.5f), true, 1, 6.206f),
+        new(188, 0, 0, new(3745.8535f, 202.5f), true, 1, 6.262f),
+        new(189, 0, 0, new(3741.8535f, 202.5f), true, 1, 6.318f),
+        new(190, 0, 0, new(3737.8535f, 202.5f), true, 1, 6.374f),
+        new(191, 0, 0, new(3733.8535f, 202.5f), true, 1, 6.43f),
+        new(192, 0, 0, new(3729.8535f, 202.5f), true, 1, 6.486f),
+        new(193, 0, 0, new(3725.8535f, 202.5f), true, 1, 6.542f),
+        new(194, 0, 0, new(3721.8535f, 203.5f), true, 2, 0.02f),
+        new(195, 0, 0, new(3717.8535f, 210.52222f), true, 2, 0.04f),
+        new(196, 0, 0, new(3713.8535f, 217.18889f), true, 2, 0.06f),
+        new(197, 0, 0, new(3709.8535f, 223.5f), true, 2, 0.08f),
+        new(198, 0, 0, new(3705.8535f, 229.45557f), true, 2, 0.1f),
+        new(199, 0, 0, new(3701.8535f, 235.05557f), true, 2, 0.12f),
+        new(200, 0, 0, new(3697.8535f, 240.30003f), true, 2, 0.14f),
+        new(201, 0, 0, new(3693.8535f, 245.18895f), true, 2, 0.16f),
+        new(202, 0, 0, new(3689.8535f, 249.7223f), true, 2, 0.18f),
+        new(203, 0, 0, new(3685.8535f, 253.90012f), true, 2, 0.2f),
+        new(204, 0, 0, new(3681.8535f, 257.72238f), true, 2, 0.22f),
+        new(205, 0, 0, new(3677.8535f, 261.1891f), true, 2, 0.24f),
+        new(206, 0, 0, new(3673.8535f, 264.30026f), true, 11, 0.1333f),
+        new(207, 0, 0, new(3669.8535f, 267.05588f), true, 11, 0.1778f),
+        new(208, 0, 0, new(3665.8535f, 269.45593f), true, 11, 0.2222f),
+        new(209, 0, 0, new(3661.8535f, 271.50043f), true, 11, 0.2667f),
+        new(210, 0, 0, new(3657.8535f, 273.1894f), true, 11, 0.3111f),
+        new(211, 0, 0, new(3653.8535f, 274.5228f), true, 11, 0.3555f),
+        new(212, 0, 0, new(3649.8535f, 275.50064f), true, 11, 0.4f),
+        new(213, 0, 0, new(3645.8535f, 276.12296f), true, 11, 0.4444f),
+        new(214, 0, 0, new(3641.8535f, 276.3897f), true, 11, 0.4889f),
+        new(215, 0, 0, new(3637.8535f, 276.3009f), true, 11, 0.5333f),
+        new(216, 0, 0, new(3633.8535f, 275.85654f), true, 11, 0.5778f),
+        new(217, 0, 0, new(3629.8535f, 275.05664f), true, 11, 0.6222f),
+        new(218, 0, 0, new(3625.8535f, 273.90118f), true, 11, 0.6667f),
+        new(219, 0, 0, new(3621.8535f, 272.39017f), true, 11, 0.7111f),
+        new(220, 0, 0, new(3617.8535f, 270.5236f), true, 11, 0.7555f),
+        new(221, 0, 0, new(3613.8535f, 268.30148f), true, 11, 0.8f),
+        new(222, 0, 0, new(3609.8535f, 265.72382f), true, 11, 0.8444f),
+        new(223, 0, 0, new(3605.8535f, 262.7906f), true, 11, 0.8889f),
+        new(224, 0, 0, new(3601.8535f, 259.5018f), true, 11, 0.9333f),
+        new(225, 0, 0, new(3597.8535f, 255.85747f), true, 11, 0.9778f),
+        new(226, 0, 0, new(3593.8535f, 251.85757f), true, 10, 7.238f),
+        new(227, 0, 0, new(3589.8535f, 247.50214f), true, 10, 7.258f),
+        new(228, 0, 0, new(3585.8535f, 242.79114f), true, 10, 7.278f),
+        new(229, 0, 0, new(3581.8535f, 237.7246f), true, 10, 7.298f),
+        new(230, 0, 0, new(3577.8535f, 232.30249f), true, 10, 7.318f),
+        new(231, 0, 0, new(3573.8535f, 226.52484f), true, 10, 7.338f),
+        new(232, 0, 0, new(3569.8535f, 220.39163f), true, 10, 7.358f),
+        new(233, 0, 0, new(3565.8535f, 213.90288f), true, 10, 7.378f),
+        new(234, 0, 0, new(3561.8535f, 207.05858f), true, 10, 7.398f),
+        new(235, 0, 0, new(3557.8535f, 203.5f), true, 2, 0.02f),
+        new(236, 0, 0, new(3553.8535f, 210.52222f), true, 2, 0.04f),
+        new(237, 0, 0, new(3549.8535f, 217.18889f), true, 2, 0.06f),
+        new(238, 0, 0, new(3545.8535f, 223.5f), true, 2, 0.08f),
+        new(239, 0, 0, new(3541.8535f, 229.45557f), true, 2, 0.1f),
+        new(240, 0, 0, new(3537.8535f, 235.05557f), true, 2, 0.12f),
+        new(241, 0, 0, new(3533.8535f, 240.30003f), true, 2, 0.14f),
+        new(242, 0, 0, new(3529.8535f, 245.18895f), true, 2, 0.16f),
+        new(243, 0, 0, new(3525.8535f, 249.7223f), true, 2, 0.18f),
+        new(244, 0, 0, new(3521.8535f, 253.90012f), true, 2, 0.2f),
+        new(245, 0, 0, new(3517.8535f, 257.72238f), true, 2, 0.22f),
+        new(246, 0, 0, new(3513.8535f, 261.1891f), true, 2, 0.24f),
+        new(247, 0, 0, new(3509.8535f, 264.30026f), true, 11, 0.1333f),
+        new(248, 0, 0, new(3505.8535f, 267.05588f), true, 11, 0.1778f),
+        new(249, 0, 0, new(3501.8535f, 269.45593f), true, 11, 0.2222f),
+        new(250, 0, 0, new(3497.8535f, 271.50043f), true, 11, 0.2667f),
+        new(251, 0, 0, new(3493.8535f, 273.1894f), true, 11, 0.3111f),
+        new(252, 0, 0, new(3489.8535f, 274.5228f), true, 11, 0.3555f),
+        new(253, 0, 0, new(3485.8535f, 275.50064f), true, 11, 0.4f),
+        new(254, 0, 0, new(3481.8535f, 276.12296f), true, 11, 0.4444f),
+        new(255, 0, 0, new(3477.8535f, 276.3897f), true, 11, 0.4889f),
+        new(256, 0, 0, new(3473.8535f, 276.3009f), true, 11, 0.5333f),
+        new(257, 0, 0, new(3469.8535f, 275.85654f), true, 11, 0.5778f),
+        new(258, 0, 0, new(3465.8535f, 275.05664f), true, 11, 0.6222f),
+        new(259, 0, 0, new(3461.8535f, 273.90118f), true, 11, 0.6667f),
+        new(260, 0, 0, new(3457.8535f, 272.39017f), true, 11, 0.7111f),
+        new(261, 0, 0, new(3453.8535f, 270.5236f), true, 11, 0.7555f),
+        new(262, 0, 0, new(3449.8535f, 268.30148f), true, 11, 0.8f),
+        new(263, 0, 0, new(3445.8535f, 265.72382f), true, 11, 0.8444f),
+        new(264, 0, 0, new(3441.8535f, 262.7906f), true, 11, 0.8889f),
+        new(265, 0, 0, new(3437.8535f, 259.5018f), true, 11, 0.9333f),
+        new(266, 0, 0, new(3433.8535f, 255.85747f), true, 11, 0.9778f),
+        new(267, 0, 0, new(3429.8535f, 251.85757f), true, 10, 8.038f),
+        new(268, 0, 0, new(3425.8535f, 247.50214f), true, 10, 8.058f),
+        new(269, 0, 0, new(3421.8535f, 242.79114f), true, 10, 8.078f),
+        new(270, 0, 0, new(3417.8535f, 237.7246f), true, 10, 8.098f),
+        new(271, 0, 0, new(3413.8535f, 232.30249f), true, 10, 8.118f),
+        new(272, 0, 0, new(3409.8535f, 226.52484f), true, 10, 8.138f),
+        new(273, 0, 0, new(3405.8535f, 220.39163f), true, 10, 8.158f),
+        new(274, 0, 0, new(3401.8535f, 213.90288f), true, 10, 8.178f),
+        new(275, 0, 0, new(3397.8535f, 207.05858f), true, 10, 8.198f),
+        new(276, 0, 0, new(3393.8535f, 202.5f), true, 1, 8.198f),
+        new(277, 0, 0, new(3390.3384f, 202.5f), false, 1, 8.2473f),
+        new(278, 0, 0, new(3387.308f, 202.5f), false, 1, 8.2897f),
+        new(279, 0, 0, new(3384.7627f, 202.5f), false, 1, 8.3253f),
+        new(280, 0, 0, new(3382.7021f, 202.5f), false, 1, 8.3542f),
+        new(281, 0, 0, new(3381.1265f, 202.5f), false, 1, 8.3762f),
+        new(282, 0, 0, new(3380.0356f, 202.5f), false, 1, 8.3915f),
+        new(283, 0, 0, new(3379.4297f, 202.5f), false, 1, 8.4f),
+        new(284, 0, 0, new(3379.3086f, 202.5f), false, 1, 8.4017f),
+        new(285, 0, 0, new(3379.672f, 202.5f), false, 1, 8.4068f),
+        new(286, 0, 0, new(3380.2358f, 203.5f), false, 18, 0.02f),
+        new(287, 0, 0, new(3380.9995f, 210.52222f), false, 18, 0.04f),
+        new(288, 0, 0, new(3381.9766f, 217.18889f), false, 18, 0.06f),
+        new(289, 0, 0, new(3383.1667f, 223.5f), false, 18, 0.08f),
+        new(290, 0, 0, new(3384.5703f, 229.45557f), false, 18, 0.1f),
+        new(291, 0, 0, new(3386.1873f, 235.05557f), false, 18, 0.12f),
+        new(292, 0, 0, new(3388.0176f, 240.30003f), false, 18, 0.14f),
+        new(293, 0, 0, new(3391.5825f, 243.73665f), false, 18, 0.16f),
+        new(294, 0, 0, new(3393.8406f, 246.46518f), false, 18, 0.18f),
+        new(295, 0, 0, new(3396.1877f, 248.92697f), false, 18, 0.2f),
+        new(296, 0, 0, new(3398.7483f, 251.0332f), false, 18, 0.22f),
+        new(297, 0, 0, new(3401.5222f, 252.78389f), false, 18, 0.24f),
+        new(298, 0, 0, new(3404.5095f, 254.17902f), false, 19, 0.3478f),
+        new(299, 0, 0, new(3407.71f, 255.2186f), false, 19, 0.3923f),
+        new(300, 0, 0, new(3411.1238f, 255.90263f), false, 19, 0.4367f),
+        new(301, 0, 0, new(3414.751f, 256.2311f), false, 19, 0.4812f),
+        new(302, 0, 0, new(3418.5916f, 256.20404f), false, 19, 0.5256f),
+        new(303, 0, 0, new(3422.5916f, 255.82141f), false, 19, 0.5701f),
+        new(304, 0, 0, new(3426.5916f, 255.08324f), false, 19, 0.6145f),
+        new(305, 0, 0, new(3430.5916f, 253.9895f), false, 19, 0.6589f),
+        new(306, 0, 0, new(3434.5916f, 252.54022f), false, 19, 0.7034f),
+        new(307, 0, 0, new(3438.5916f, 250.73538f), false, 19, 0.7478f),
+        new(308, 0, 0, new(3442.5916f, 248.575f), false, 19, 0.7923f),
+        new(309, 0, 0, new(3446.5916f, 246.05905f), false, 19, 0.8367f),
+        new(310, 0, 0, new(3450.5916f, 243.18756f), false, 19, 0.8812f),
+        new(311, 0, 0, new(3454.5916f, 239.96051f), false, 19, 0.9256f),
+        new(312, 0, 0, new(3458.5916f, 236.37791f), false, 19, 0.97f),
+        new(313, 0, 0, new(3462.5916f, 232.43976f), false, 10, 8.9547f),
+        new(314, 0, 0, new(3466.5916f, 228.14606f), false, 10, 8.9747f),
+        new(315, 0, 0, new(3470.5916f, 223.49681f), false, 10, 8.9947f),
+        new(316, 0, 0, new(3474.5916f, 218.492f), false, 10, 9.0147f),
+        new(317, 0, 0, new(3478.5916f, 213.13165f), false, 10, 9.0347f),
+        new(318, 0, 0, new(3482.5916f, 207.41574f), false, 10, 9.0547f),
+        new(319, 0, 0, new(3486.5916f, 203.5f), false, 2, 0.02f),
+        new(320, 0, 0, new(3490.5916f, 210.52222f), false, 2, 0.04f),
+        new(321, 0, 0, new(3494.5916f, 217.18889f), false, 2, 0.06f),
+        new(322, 0, 0, new(3498.5916f, 223.5f), false, 2, 0.08f),
+        new(323, 0, 0, new(3502.5916f, 229.45557f), false, 2, 0.1f),
+        new(324, 0, 0, new(3506.5916f, 235.05557f), false, 2, 0.12f),
+        new(325, 0, 0, new(3510.5916f, 240.30003f), false, 2, 0.14f),
+        new(326, 0, 0, new(3514.5916f, 245.18895f), false, 2, 0.16f),
+        new(327, 0, 0, new(3518.5916f, 249.7223f), false, 2, 0.18f),
+        new(328, 0, 0, new(3522.5916f, 253.90012f), false, 2, 0.2f),
+        new(329, 0, 0, new(3526.5916f, 257.72238f), false, 2, 0.22f),
+        new(330, 0, 0, new(3530.5916f, 261.1891f), false, 2, 0.24f),
+        new(331, 0, 0, new(3534.5916f, 264.30026f), false, 11, 0.1333f),
+        new(332, 0, 0, new(3538.5916f, 267.05588f), false, 11, 0.1778f),
+        new(333, 0, 0, new(3542.5916f, 269.45593f), false, 11, 0.2222f),
+        new(334, 0, 0, new(3546.5916f, 271.50043f), false, 11, 0.2667f),
+        new(335, 0, 0, new(3550.5916f, 273.1894f), false, 11, 0.3111f),
+        new(336, 0, 0, new(3554.5916f, 274.5228f), false, 11, 0.3555f),
+        new(337, 0, 0, new(3558.5916f, 275.50064f), false, 11, 0.4f),
+        new(338, 0, 0, new(3562.5916f, 276.12296f), false, 11, 0.4444f),
+        new(339, 0, 0, new(3566.5916f, 276.3897f), false, 11, 0.4889f),
+        new(340, 0, 0, new(3570.5916f, 276.3009f), false, 11, 0.5333f),
+        new(341, 0, 0, new(3574.5916f, 275.85654f), false, 11, 0.5778f),
+        new(342, 0, 0, new(3578.5916f, 275.05664f), false, 11, 0.6222f),
+        new(343, 0, 0, new(3582.5916f, 273.90118f), false, 11, 0.6667f),
+        new(344, 0, 0, new(3586.5916f, 272.39017f), false, 11, 0.7111f),
+        new(345, 0, 0, new(3590.5916f, 270.5236f), false, 11, 0.7555f),
+        new(346, 0, 0, new(3594.5916f, 268.30148f), false, 11, 0.8f),
+        new(347, 0, 0, new(3598.5916f, 265.72382f), false, 11, 0.8444f),
+        new(348, 0, 0, new(3602.5916f, 262.7906f), false, 11, 0.8889f),
+        new(349, 0, 0, new(3606.5916f, 259.5018f), false, 11, 0.9333f),
+        new(350, 0, 0, new(3610.5916f, 255.85747f), false, 11, 0.9778f),
+        new(351, 0, 0, new(3614.5916f, 251.85757f), false, 10, 9.6947f),
+        new(352, 0, 0, new(3618.5916f, 247.50214f), false, 10, 9.7147f),
+        new(353, 0, 0, new(3622.5916f, 242.79114f), false, 10, 9.7347f),
+        new(354, 0, 0, new(3626.5916f, 237.7246f), false, 10, 9.7547f),
+        new(355, 0, 0, new(3630.5916f, 232.30249f), false, 10, 9.7747f),
+        new(356, 0, 0, new(3634.5916f, 226.52484f), false, 10, 9.7947f),
+        new(357, 0, 0, new(3638.5916f, 220.39163f), false, 10, 9.8147f),
+        new(358, 0, 0, new(3642.5916f, 213.90288f), false, 10, 9.8347f),
+        new(359, 0, 0, new(3646.5916f, 207.05858f), false, 10, 9.8547f),
+        new(360, 0, 0, new(3650.5916f, 202.5f), false, 1, 9.8547f),
+        new(361, 0, 0, new(3654.5916f, 202.5f), false, 1, 9.9107f),
+        new(362, 0, 0, new(3658.5916f, 202.5f), false, 1, 9.9667f),
+        new(363, 0, 0, new(3662.5916f, 202.5f), false, 1, 10.0227f),
+        new(364, 0, 0, new(3666.5916f, 202.5f), false, 1, 10.0787f),
+        new(365, 0, 0, new(3670.5916f, 202.5f), false, 1, 10.1347f),
+        new(366, 0, 0, new(3674.5916f, 202.5f), false, 1, 10.1907f),
+        new(367, 0, 0, new(3678.5916f, 202.5f), false, 1, 10.2467f),
+        new(368, 0, 0, new(3682.5916f, 202.5f), false, 1, 10.3027f),
+        new(369, 0, 0, new(3686.5916f, 202.5f), false, 1, 10.3587f),
+        new(370, 0, 0, new(3690.5916f, 202.5f), false, 1, 10.4147f),
+        new(371, 0, 0, new(3694.5916f, 202.5f), false, 1, 10.4707f),
+        new(372, 0, 0, new(3698.5916f, 202.5f), false, 1, 10.5267f),
+        new(373, 0, 0, new(3702.5916f, 202.5f), false, 1, 10.5827f),
+        new(374, 0, 0, new(3706.5916f, 202.5f), false, 1, 10.6387f),
+        new(375, 0, 0, new(3710.5916f, 202.5f), false, 1, 10.6947f),
+        new(376, 0, 0, new(3714.5916f, 202.5f), false, 1, 10.7507f),
+        new(377, 0, 0, new(3718.5916f, 202.5f), false, 1, 10.8067f),
+        new(378, 0, 0, new(3722.5916f, 202.5f), false, 1, 10.8627f),
+        new(379, 0, 0, new(3726.5916f, 202.5f), false, 1, 10.9187f),
+        new(380, 0, 0, new(3730.5916f, 202.5f), false, 1, 10.9747f),
+        new(381, 0, 0, new(3734.5916f, 202.5f), false, 1, 11.0307f),
+        new(382, 0, 0, new(3738.5916f, 202.5f), false, 1, 11.0867f),
+        new(383, 0, 0, new(3742.5916f, 203.5f), false, 2, 0.02f),
+        new(384, 0, 0, new(3746.5916f, 210.52222f), false, 2, 0.04f),
+        new(385, 0, 0, new(3750.5916f, 217.18889f), false, 2, 0.06f),
+        new(386, 0, 0, new(3754.5916f, 223.5f), false, 2, 0.08f),
+        new(387, 0, 0, new(3758.5916f, 229.45557f), false, 2, 0.1f),
+        new(388, 0, 0, new(3762.5916f, 235.05557f), false, 2, 0.12f),
+        new(389, 0, 0, new(3766.5916f, 240.30003f), false, 2, 0.14f),
+        new(390, 0, 0, new(3771.4668f, 244.1892f), false, 2, 0.16f),
+        new(391, 0, 0, new(3776.3062f, 247.76381f), false, 2, 0.18f),
+        new(392, 0, 0, new(3781.1455f, 250.98288f), false, 2, 0.2f),
+        new(393, 0, 0, new(3785.9849f, 253.84639f), false, 2, 0.22f),
+        new(394, 0, 0, new(3790.8242f, 256.35437f), false, 2, 0.24f),
+        new(395, 0, 0, new(3795.6636f, 258.5068f), false, 11, 0.2532f),
+        new(396, 0, 0, new(3800.503f, 260.30368f), false, 11, 0.2976f),
+        new(397, 0, 0, new(3805.3423f, 261.745f), false, 11, 0.3421f),
+        new(398, 0, 0, new(3810.1816f, 262.83075f), false, 11, 0.3865f),
+        new(399, 0, 0, new(3815.021f, 263.56097f), false, 11, 0.4309f),
+        new(400, 0, 0, new(3819.8604f, 263.93564f), false, 11, 0.4754f),
+        new(401, 0, 0, new(3824.6997f, 263.95474f), false, 11, 0.5198f),
+        new(402, 0, 0, new(3829.539f, 263.61832f), false, 11, 0.5643f),
+        new(403, 0, 0, new(3834.3784f, 262.92633f), false, 11, 0.6087f),
+        new(404, 0, 0, new(3839.2178f, 261.87878f), false, 11, 0.6532f),
+        new(405, 0, 0, new(3844.0571f, 260.47568f), false, 11, 0.6976f),
+        new(406, 0, 0, new(3848.8965f, 258.71704f), false, 11, 0.7421f),
+        new(407, 0, 0, new(3853.7358f, 256.60284f), false, 11, 0.7865f),
+        new(408, 0, 0, new(3858.5752f, 254.13307f), false, 11, 0.8309f),
+        new(409, 0, 0, new(3863.4146f, 251.30775f), false, 11, 0.8754f),
+        new(410, 0, 0, new(3868.254f, 248.12688f), false, 11, 0.9198f),
+        new(411, 0, 0, new(3873.0933f, 244.59045f), false, 11, 0.9643f),
+        new(412, 0, 0, new(3877.9326f, 240.69849f), false, 10, 11.7227f),
+        new(413, 0, 0, new(3882.772f, 236.45096f), false, 10, 11.7427f),
+        new(414, 0, 0, new(3887.6113f, 231.84789f), false, 10, 11.7627f),
+        new(415, 0, 0, new(3892.4507f, 226.88925f), false, 10, 11.7827f),
+        new(416, 0, 0, new(3897.29f, 221.57507f), false, 10, 11.8027f),
+        new(417, 0, 0, new(3902.1294f, 215.90533f), false, 10, 11.8227f),
+        new(418, 0, 0, new(3906.9688f, 209.88005f), false, 10, 11.8427f),
+        new(419, 0, 0, new(3911.808f, 203.4992f), false, 10, 11.8627f),
+        new(420, 0, 0, new(3916.6475f, 196.76282f), false, 10, 11.8827f),
+        new(421, 0, 0, new(3921.4868f, 189.67088f), false, 10, 11.9027f),
+        new(422, 0, 0, new(3926.3262f, 182.22339f), false, 10, 11.9227f),
+        new(423, 0, 0, new(3931.1655f, 174.42035f), false, 10, 11.9427f),
+        new(424, 0, 0, new(3936.005f, 166.26175f), false, 10, 11.9627f),
+        new(425, 0, 0, new(3940.8442f, 157.7476f), false, 10, 11.9827f),
+        new(426, 0, 0, new(3945.6836f, 148.8779f), false, 10, 12.0027f),
+        new(427, 0, 0, new(3950.523f, 139.65265f), false, 10, 12.0227f),
+        new(428, 0, 0, new(3955.3623f, 130.07184f), false, 10, 12.0427f),
+        new(429, 0, 0, new(3960.2017f, 120.13549f), false, 10, 12.0627f),
+        new(430, 0, 0, new(3965.041f, 109.84359f), false, 10, 12.0827f),
+        new(431, 0, 0, new(3969.8804f, 99.19614f), false, 10, 12.1027f),
+        new(432, 0, 0, new(3974.7197f, 88.19313f), false, 10, 12.1227f),
+        new(433, 0, 0, new(3979.559f, 84f), false, 1, 12.1227f),
+        new(434, 0, 0, new(3983.9136f, 84f), false, 1, 12.1837f),
+        new(435, 0, 0, new(3987.9136f, 84f), false, 1, 12.2397f),
+        new(436, 0, 0, new(3991.9136f, 84f), false, 1, 12.2957f),
+        new(437, 0, 0, new(3995.9136f, 84f), false, 1, 12.3517f),
+        new(438, 0, 0, new(3999.9136f, 84f), false, 1, 12.4077f),
+        new(439, 0, 0, new(4003.9136f, 84f), false, 1, 12.4637f),
+        new(440, 0, 0, new(4007.9136f, 84f), false, 1, 12.5197f),
+        new(441, 0, 0, new(4011.9136f, 84f), false, 1, 12.5757f),
+        new(442, 0, 0, new(4015.9136f, 84f), false, 1, 12.6317f),
+        new(443, 0, 0, new(4019.9136f, 84f), false, 1, 12.6877f),
+        new(444, 0, 0, new(4023.9136f, 84f), false, 1, 12.7437f),
+        new(445, 0, 0, new(4027.9136f, 84f), false, 1, 12.7997f),
+        new(446, 0, 0, new(4031.9136f, 84f), false, 1, 12.8557f),
+        new(447, 0, 0, new(4035.9136f, 84f), false, 1, 12.9117f),
+        new(448, 0, 0, new(4039.9136f, 84f), false, 1, 12.9677f),
+        new(449, 0, 0, new(4043.9136f, 84f), false, 1, 13.0237f),
+        new(450, 0, 0, new(4047.9136f, 84f), false, 1, 13.0797f),
+        new(451, 0, 0, new(4051.9136f, 84f), false, 1, 13.1357f),
+        new(452, 0, 0, new(4055.9136f, 84f), false, 1, 13.1917f),
+        new(453, 0, 0, new(4059.9136f, 84f), false, 1, 13.2477f),
+        new(454, 0, 0, new(4063.9136f, 84f), false, 1, 13.3037f),
+        new(455, 0, 0, new(4067.9136f, 84f), false, 1, 13.3597f),
+        new(456, 0, 0, new(4071.9136f, 84f), false, 1, 13.4157f),
+        new(457, 0, 0, new(4075.9136f, 84f), false, 1, 13.4717f),
+        new(458, 0, 0, new(4079.9136f, 84f), false, 1, 13.5277f),
+        new(459, 0, 0, new(4083.9136f, 84f), false, 1, 13.5837f),
+        new(460, 0, 0, new(4087.9136f, 84f), false, 1, 13.6397f),
+        new(461, 0, 0, new(4091.9136f, 84f), false, 1, 13.6957f),
+        new(462, 0, 0, new(4095.9136f, 84f), false, 1, 13.7517f),
+        new(463, 0, 0, new(4099.9136f, 84f), false, 1, 13.8077f),
+        new(464, 0, 0, new(4103.9136f, 84f), false, 1, 13.8637f),
+        new(465, 0, 0, new(4107.9136f, 84f), false, 1, 13.9197f),
+        new(466, 0, 0, new(4111.9136f, 84f), false, 1, 13.9757f),
+        new(467, 0, 0, new(4115.9136f, 84f), false, 1, 14.0317f),
+        new(468, 0, 0, new(4119.9136f, 84f), false, 1, 14.0877f),
+        new(469, 0, 0, new(4123.9136f, 84f), false, 1, 14.1437f),
+        new(470, 0, 0, new(4127.9136f, 84f), false, 1, 14.1997f),
+        new(471, 0, 0, new(4131.9136f, 84f), false, 1, 14.2557f),
+        new(472, 0, 0, new(4135.5f, 84f), false, 1, 14.3117f),
+        new(473, 0, 0, new(4134.385f, 84f), false, 1, 14.3273f),
+        new(474, 0, 0, new(4133.7544f, 84f), false, 1, 14.3361f),
+    ];
+}

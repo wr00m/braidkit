@@ -22,10 +22,11 @@ public class TempConsoleColor : IDisposable
     public void Dispose() => Console.ForegroundColor = _initialColor;
 }
 
-public class TempCancelAction : IDisposable
+/// <summary>Action that triggers when Ctrl+C is pressed in a console application</summary>
+public class ConsoleCancelAction : IDisposable
 {
     private ConsoleCancelEventHandler _handler;
-    public TempCancelAction(Action action)
+    public ConsoleCancelAction(Action action)
     {
         _handler = new((_, e) =>
         {

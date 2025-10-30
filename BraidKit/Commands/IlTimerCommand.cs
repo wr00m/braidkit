@@ -27,7 +27,7 @@ internal static partial class Commands
             var cancel = false;
 
             Console.WriteLine("IL timer enabled. Press Ctrl+C to exit.\n");
-            using var _ = new TempCancelAction(() => cancel = true); // When Ctrl+C is pressed
+            using var _ = new ConsoleCancelAction(() => cancel = true);
 
             using var highPrecisionTimer = highPrecision ? new HighPrecisionTimer(10) : null;
             var ilTimer = new IlTimer(braidGame, world, level, resetPieces, live);

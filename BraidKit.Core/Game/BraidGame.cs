@@ -29,6 +29,7 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     }
 
     public Process Process => _process;
+    public ProcessMemoryHandler ProcessMemoryHandler => _processMemoryHandler;
     public bool IsSteamVersion => _process.Modules[0].ModuleMemorySize == 7663616;
     public bool IsRunning => !_process.HasExited;
 
@@ -156,17 +157,36 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     public List<Entity> GetPuzzleFrames() => GetEntitiesByPortableType(PortableTypeAddr.PuzzleFrame).ToList();
     public GameValue<SpriteAnimationSet> TimSpriteAnimationSet = new(_processMemoryHandler, _processMemoryHandler.Read<IntPtr>(0x5f71e4));
 
+    private const int _puzzleWorldCount = 5;
+    private const int _pieceCountPerPuzzle = 12;
+
+    private static IntPtr GetPuzzlePieceAddr(int world, int piece)
+    {
+        const IntPtr initialPuzzlePieceAddr = 0x5f7584;
+        const IntPtr worldPuzzlePieceOffset = 0x18c;
+        const IntPtr individualPuzzlePieceOffset = 0x20;
+
+        if (world < 0 || world >= _puzzleWorldCount || piece < 0 || piece >= _pieceCountPerPuzzle)
+            return IntPtr.Zero;
+
+        var puzzlePieceAddr = initialPuzzlePieceAddr + worldPuzzlePieceOffset * world + individualPuzzlePieceOffset * piece;
+        return puzzlePieceAddr;
+    }
+
+    private static IEnumerable<IntPtr> EnumeratePuzzlePieceAcquiredAddrs()
+    {
+        for (int world = 0; world < _puzzleWorldCount; world++)
+            for (int piece = 0; piece < _pieceCountPerPuzzle; piece++)
+                yield return GetPuzzlePieceAddr(world, piece);
+    }
+
+    public int CountAcquiredPuzzlePieces() => EnumeratePuzzlePieceAcquiredAddrs().Sum(addr => _processMemoryHandler.Read<bool>(addr) ? 1 : 0);
+
     public void ResetPieces()
     {
-        const IntPtr _initialPuzzlePieceAddr = 0x5f7584;
-        const IntPtr _worldPuzzlePieceOffset = 0x18c;
-        const IntPtr _individualPuzzlePieceOffset = 0x20;
-
         // Note: Pieces in current level don't reset, but maybe that's good since we don't want to reset pieces during level fadeout
-        for (int world = 0; world < 5; world++)
-            for (int piece = 0; piece < 12; piece++)
-                // TODO: Write<byte>?
-                _processMemoryHandler.Write(_initialPuzzlePieceAddr + _worldPuzzlePieceOffset * world + _individualPuzzlePieceOffset * piece, 0);
+        foreach (var puzzlePieceAddr in EnumeratePuzzlePieceAcquiredAddrs())
+            _processMemoryHandler.Write(puzzlePieceAddr, false);
     }
 
     public bool TryGetTimSprite(EntitySnapshot entity, out RectangleF world, out RectangleF uv, out IntPtr textureMapAddr)

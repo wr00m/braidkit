@@ -1,5 +1,6 @@
 ﻿using BraidKit.Core;
 using BraidKit.Core.Game;
+using BraidKit.Core.Network;
 using System.Numerics;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
@@ -23,27 +24,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         if (!RenderSettings.IsRenderingActive() || _braidGame.InMainMenu || _braidGame.InPuzzleAssemblyScreen)
             return;
 
-        var viewProjMtx = Matrix4x4.CreateOrthographicOffCenter(
-            _braidGame.CameraPositionX,
-            _braidGame.CameraPositionX + _braidGame.IdealWidth,
-            _braidGame.CameraPositionY,
-            _braidGame.CameraPositionY + _braidGame.IdealHeight,
-            0f,
-            1f);
-
-        var screenMtx = Matrix4x4.CreateOrthographicOffCenter(
-            0f,
-            _braidGame.ScreenWidth,
-            _braidGame.ScreenHeight,
-            0f,
-            0f,
-            1f);
-
-        var worldToScreenMtx = Matrix4x4.Invert(screenMtx, out var inverted) ? viewProjMtx * inverted : throw new Exception($"Failed to invert {nameof(screenMtx)}");
-
-        // Transpose matrices for Direct3D
-        viewProjMtx = Matrix4x4.Transpose(viewProjMtx);
-        screenMtx = Matrix4x4.Transpose(screenMtx);
+        GetMatrices(out var viewProjMtx, out var screenMtx, out var worldToScreenMtx);
 
         if (RenderSettings.RenderEntityBounds || RenderSettings.RenderEntityCenters)
         {
@@ -111,7 +92,8 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 _ => throw new ArgumentOutOfRangeException(nameof(RenderSettings.RenderTimVelocity), RenderSettings.RenderTimVelocity, null),
             };
 
-            _textRenderer.RenderText($"velocity\nx={tim.VelocityX:0}\ny={tim.VelocityY:0}",
+            _textRenderer.RenderText(
+                $"velocity\nx={tim.VelocityX:0}\ny={tim.VelocityY:0}",
                 textX,
                 textY,
                 alignX,
@@ -119,6 +101,72 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 RenderSettings.FontSize,
                 new(RenderSettings.FontColor));
         }
+    }
+
+    public void RenderPlayerLabelsAndLeaderboard(List<PlayerSummary> players)
+    {
+        if (_braidGame.InMainMenu || _braidGame.InPuzzleAssemblyScreen)
+            return;
+
+        var world = _braidGame.TimWorld.Value;
+        var level = _braidGame.TimLevel.Value;
+        var visibleOtherPlayers = players.Where(x => !x.IsOwnPlayer && x.EntitySnapshot.World == world && x.EntitySnapshot.Level == level).ToList();
+
+        GetMatrices(out var _, out var screenMtx, out var worldToScreenMtx);
+
+        _textRenderer.Activate();
+        _textRenderer.SetViewProjectionMatrix(screenMtx);
+
+        foreach (var visibleOtherPlayer in visibleOtherPlayers)
+        {
+            var playerScreenPos = Vector2.Transform(visibleOtherPlayer.EntitySnapshot.Position, worldToScreenMtx);
+            _textRenderer.RenderText(
+                visibleOtherPlayer.Name,
+                playerScreenPos.X,
+                playerScreenPos.Y,
+                HAlign.Center,
+                VAlign.Top,
+                RenderSettings.FontSize,
+                new(visibleOtherPlayer.Color.ToRgba()));
+        }
+
+        foreach (var (player, i) in players.Select((x, i) => (x, i)))
+        {
+            const float margin = 10f;
+            _textRenderer.RenderText(
+                $"{player.PuzzlePieces} pcs ({player.EntitySnapshot.World}-{player.EntitySnapshot.Level}) {player.Name}",
+                margin,
+                margin + RenderSettings.FontSize * 2f * i,
+                HAlign.Left,
+                VAlign.Top,
+                RenderSettings.FontSize,
+                new(player.Color.ToRgba()));
+        }
+    }
+
+    private void GetMatrices(out Matrix4x4 viewProjMtx, out Matrix4x4 screenMtx, out Matrix4x4 worldToScreenMtx)
+    {
+        viewProjMtx = Matrix4x4.CreateOrthographicOffCenter(
+           _braidGame.CameraPositionX,
+           _braidGame.CameraPositionX + _braidGame.IdealWidth,
+           _braidGame.CameraPositionY,
+           _braidGame.CameraPositionY + _braidGame.IdealHeight,
+           0f,
+           1f);
+
+        screenMtx = Matrix4x4.CreateOrthographicOffCenter(
+           0f,
+           _braidGame.ScreenWidth,
+           _braidGame.ScreenHeight,
+           0f,
+           0f,
+           1f);
+
+        worldToScreenMtx = Matrix4x4.Invert(screenMtx, out var inverted) ? viewProjMtx * inverted : throw new Exception($"Failed to invert {nameof(screenMtx)}");
+
+        // Transpose matrices for Direct3D
+        viewProjMtx = Matrix4x4.Transpose(viewProjMtx);
+        screenMtx = Matrix4x4.Transpose(screenMtx);
     }
 
     private void RenderEntityBounds(Entity entity)

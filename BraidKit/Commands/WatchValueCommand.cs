@@ -18,7 +18,7 @@ internal static partial class Commands
 
             Console.WriteLine($"Watching {watchValue}. Press Ctrl+C to exit.\n");
             var cancel = false;
-            using var _ = new TempCancelAction(() => cancel = true); // When Ctrl+C is pressed
+            using var _ = new ConsoleCancelAction(() => cancel = true);
 
             while (!cancel && braidGame.IsRunning)
             {

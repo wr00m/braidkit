@@ -10,6 +10,11 @@ public static class DllInjector
         return process.InjectBraidKitDllIntoGame("Render", renderSettings) != 0;
     }
 
+    public static bool InjectJoinServer(this Process process, JoinServerSettings joinServerSettings)
+    {
+        return process.InjectBraidKitDllIntoGame("JoinServer", joinServerSettings) != 0;
+    }
+
     private static int InjectBraidKitDllIntoGame<TArgs>(this Process process, string method, TArgs args) where TArgs : struct
     {
         return process.Inject(

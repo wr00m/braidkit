@@ -33,6 +33,24 @@ internal static class CommandHelper
         return cmd;
     }
 
+    internal static Command SetBraidGameAction(this Command cmd, Action<ParseResult> action)
+    {
+        cmd.SetAction(action);
+        return cmd;
+    }
+
+    internal static Command SetBraidGameAction(this Command cmd, Func<ParseResult, Task> action)
+    {
+        cmd.SetAction(action);
+        return cmd;
+    }
+
+    internal static Command SetHidden(this Command cmd, bool hidden)
+    {
+        cmd.Hidden = hidden;
+        return cmd;
+    }
+
     internal static Argument<TEnum> FormatEnumHelp<TEnum>(this Argument<TEnum> arg) where TEnum : struct, Enum
     {
         arg.HelpName = arg.Name;

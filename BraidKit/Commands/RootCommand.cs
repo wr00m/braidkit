@@ -21,5 +21,6 @@ internal static partial class Commands
             ResetPiecesCommand,
             RenderOverlayCommand,
             WatchValueCommand,
+            ServerCommand,
         };
 }
