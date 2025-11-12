@@ -12,10 +12,9 @@ public sealed class UdpHelper : IDisposable
     private readonly Thread _thread;
     private readonly Action<byte[], IPEndPoint> _packetReceivedCallback;
 
-    // Not sure where to put this (that's what she said...)
     public static bool TryResolveIPAdress(string ipOrDnsHostname, [NotNullWhen(true)] out IPAddress? ipAddress)
     {
-        // Not sure which one to choose if more than one, so just pick one at random (that's what she said...)
+        // Not sure which one to choose if more than one, so just pick one at random
         ipAddress = Dns.GetHostAddresses(ipOrDnsHostname).OrderBy(_ => Guid.NewGuid()).FirstOrDefault();
         return ipAddress != null;
     }

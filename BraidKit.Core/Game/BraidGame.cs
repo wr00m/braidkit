@@ -6,7 +6,7 @@ using System.Numerics;
 
 namespace BraidKit.Core.Game;
 
-public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHandler) : IDisposable
+public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHandler) : IDisposable
 {
     public static BraidGame? GetFromOtherProcess()
     {
@@ -65,8 +65,8 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     public GameValue<float> CameraPositionY { get; } = new(_processMemoryHandler, 0x5f6ac0);
     public GameValue<int> IdealWidth { get; } = new(_processMemoryHandler, 0x5f6a90, 1280);
     public GameValue<int> IdealHeight { get; } = new(_processMemoryHandler, 0x5f6a94, 720);
-    public int ScreenWidth => 1920; // TODO: Read from game process memory
-    public int ScreenHeight => 1080; // TODO: Read from game process memory
+    public GameValue<int> ScreenWidth { get; } = new(_processMemoryHandler, 0x5f6a98); // desired_aperture_width
+    public GameValue<int> ScreenHeight { get; } = new(_processMemoryHandler, 0x5f6a9c); // desired_aperture_height
 
     public float Zoom
     {
@@ -154,7 +154,7 @@ public class BraidGame(Process _process, ProcessMemoryHandler _processMemoryHand
     public Entity? GetTimOrNull() => GetEntitiesByPortableType(PortableTypeAddr.Guy).FirstOrDefault();
     public Entity GetTim() => GetTimOrNull() ?? throw new Exception("Where's Tim?");
     public GreeterEntity? GetDinosaurAkaGreeter() => GetEntitiesByPortableType(PortableTypeAddr.Greeter).FirstOrDefault()?.AsGreeter();
-    public List<Entity> GetPuzzleFrames() => GetEntitiesByPortableType(PortableTypeAddr.PuzzleFrame).ToList();
+    public List<Entity> GetPuzzleFrames() => [.. GetEntitiesByPortableType(PortableTypeAddr.PuzzleFrame)];
     public GameValue<SpriteAnimationSet> TimSpriteAnimationSet = new(_processMemoryHandler, _processMemoryHandler.Read<IntPtr>(0x5f71e4));
 
     private const int _puzzleWorldCount = 5;

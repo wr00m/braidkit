@@ -22,6 +22,16 @@ internal class Player
 
 public record PlayerSummary(PlayerId PlayerId, string Name, PlayerColor Color, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer);
 
+public static class PlayerExtensions
+{
+    public static IEnumerable<PlayerSummary> OrderByPuzzlePieces(this IEnumerable<PlayerSummary> items) => items
+        .OrderByDescending(x => x.PuzzlePieces)
+        .ThenByDescending(x => x.EntitySnapshot.World)
+        .ThenByDescending(x => x.EntitySnapshot.Level)
+        .ThenBy(x => x.Name)
+        .ThenBy(x => x.PlayerId.Value);
+}
+
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public readonly record struct PlayerId(byte Value)
 {

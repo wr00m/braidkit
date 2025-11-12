@@ -45,8 +45,8 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         if (RenderSettings.RenderBorder)
         {
             const float borderWidth = 1f;
-            var sw = _braidGame.ScreenWidth;
-            var sh = _braidGame.ScreenHeight;
+            var sw = _braidGame.ScreenWidth.Value;
+            var sh = _braidGame.ScreenHeight.Value;
             _lineRenderer.Activate();
             _lineRenderer.SetViewProjectionMatrix(screenMtx);
             _lineRenderer.RenderRectangle(new(sw * .5f, sh * .5f), sw, sh, new(0x200000ff), borderWidth, 0f);
@@ -130,7 +130,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 new(visibleOtherPlayer.Color.ToRgba()));
         }
 
-        foreach (var (player, i) in players.Select((x, i) => (x, i)))
+        foreach (var (player, i) in players.OrderByPuzzlePieces().Select((x, i) => (x, i)))
         {
             const float margin = 10f;
             _textRenderer.RenderText(

@@ -42,7 +42,7 @@ internal static class Bootstrapper
                 if (IsConnected)
                     _gameRenderer.RenderPlayerLabelsAndLeaderboard(_multiplayerClient.GetPlayers());
             });
-            _getGuyAnimationIndexAndDurationHook = new((IntPtr entityAddr, int animationIndex, float animationTime) =>
+            _getGuyAnimationIndexAndDurationHook = new((entityAddr, animationIndex, animationTime) =>
             {
                 // Send Tim's position to server
                 if (IsConnected && _braidGame.TryGetTim(out var tim) && tim.Addr == entityAddr)
