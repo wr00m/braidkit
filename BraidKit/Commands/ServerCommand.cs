@@ -1,7 +1,5 @@
-﻿using BraidKit.Core;
-using BraidKit.Core.Game;
-using BraidKit.Core.Helpers;
-using BraidKit.Core.Network;
+﻿using BraidKit.Core.Helpers;
+using BraidKit.Network;
 using InjectDotnet;
 using System.Collections.Immutable;
 using System.CommandLine;

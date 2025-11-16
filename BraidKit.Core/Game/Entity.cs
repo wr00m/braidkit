@@ -149,9 +149,3 @@ public static class EntityHelper
 {
     public static Entity GetTim(this IEnumerable<Entity> entities) => entities.FirstOrDefault(x => x.EntityType == EntityType.Guy) ?? throw new Exception("Tim not found");
 }
-
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public record struct EntitySnapshot(int FrameIndex, byte World, byte Level, Vector2 Position, bool FacingLeft, byte AnimationIndex, float AnimationTime)
-{
-    public static readonly EntitySnapshot Empty = default;
-}

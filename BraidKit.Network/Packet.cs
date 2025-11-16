@@ -1,8 +1,8 @@
-﻿using BraidKit.Core.Game;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace BraidKit.Core.Network;
+namespace BraidKit.Network;
 
 internal enum PacketType : byte
 {
@@ -51,6 +51,12 @@ internal unsafe readonly struct PlayerStateBroadcastPacket(PlayerId playerId, Fi
     public readonly FixedLengthAsciiString PlayerName = playerName;
     public readonly byte PuzzlePieces = puzzlePieces;
     public readonly EntitySnapshot EntitySnapshot = entitySnapshot;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public record struct EntitySnapshot(int FrameIndex, byte World, byte Level, Vector2 Position, bool FacingLeft, byte AnimationIndex, float AnimationTime)
+{
+    public static readonly EntitySnapshot Empty = default;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]

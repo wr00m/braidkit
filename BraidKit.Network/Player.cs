@@ -1,8 +1,7 @@
-﻿using BraidKit.Core.Game;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Runtime.InteropServices;
 
-namespace BraidKit.Core.Network;
+namespace BraidKit.Network;
 
 internal class Player
 {

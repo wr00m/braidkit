@@ -1,10 +1,10 @@
-﻿using BraidKit.Core.Helpers;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
-namespace BraidKit.Core.Network;
+namespace BraidKit.Network;
 
 public sealed class UdpHelper : IDisposable
 {
@@ -22,7 +22,10 @@ public sealed class UdpHelper : IDisposable
     public UdpHelper(int clientPort, Action<byte[], IPEndPoint> packetReceivedCallback)
     {
         _udpClient = new(clientPort);
-        DisableUdpConnectionReset(_udpClient.Client);
+
+        if (OperatingSystem.IsWindows())
+            DisableUdpConnectionReset(_udpClient.Client);
+
         _thread = new(ReceiveLoop);
         _thread.Start();
         _packetReceivedCallback = packetReceivedCallback;
@@ -76,12 +79,13 @@ public sealed class UdpHelper : IDisposable
         }
         catch (Exception ex)
         {
-            ConsoleHelper.WriteError(ex.Message);
+            Console.Error.Write(ex.Message);
             return [];
         }
     }
 
     /// <summary>Prevents Windows from throwing <see cref="SocketError.ConnectionReset"/> on ICMP "Port Unreachable"</summary>
+    [SupportedOSPlatform("windows")]
     public static void DisableUdpConnectionReset(Socket socket)
     {
         const int SIO_UDP_CONNRESET = -1744830452;

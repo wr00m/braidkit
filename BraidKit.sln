@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BraidKit.Inject", "BraidKit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BraidKit.Core", "BraidKit.Core\BraidKit.Core.csproj", "{41BC0B99-872C-4155-9E5B-E4673A4A9E21}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BraidKit.Network", "BraidKit.Network\BraidKit.Network.csproj", "{26E37660-657D-707C-73A5-AC131E5693D8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -27,6 +29,10 @@ Global
 		{41BC0B99-872C-4155-9E5B-E4673A4A9E21}.Debug|x86.Build.0 = Debug|x86
 		{41BC0B99-872C-4155-9E5B-E4673A4A9E21}.Release|x86.ActiveCfg = Release|x86
 		{41BC0B99-872C-4155-9E5B-E4673A4A9E21}.Release|x86.Build.0 = Release|x86
+		{26E37660-657D-707C-73A5-AC131E5693D8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{26E37660-657D-707C-73A5-AC131E5693D8}.Debug|x86.Build.0 = Debug|Any CPU
+		{26E37660-657D-707C-73A5-AC131E5693D8}.Release|x86.ActiveCfg = Release|Any CPU
+		{26E37660-657D-707C-73A5-AC131E5693D8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

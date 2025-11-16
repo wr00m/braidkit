@@ -1,7 +1,8 @@
-﻿using InjectDotnet;
+﻿using BraidKit.Core;
+using InjectDotnet;
 using System.Diagnostics;
 
-namespace BraidKit.Core;
+namespace BraidKit;
 
 public static class DllInjector
 {

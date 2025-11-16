@@ -1,6 +1,6 @@
 ﻿using BraidKit.Core;
 using BraidKit.Core.Game;
-using BraidKit.Core.Network;
+using BraidKit.Network;
 using System.Numerics;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;

@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Text.Json;
 
 namespace BraidKit.Core.Helpers;
@@ -22,6 +23,7 @@ public static class EmbeddedResourceHelper
         return result;
     }
 
+    [SupportedOSPlatform("windows")]
     public static Bitmap ReadEmbeddedImageFile(this Assembly assembly, string filename)
     {
         using var stream = assembly.GetEmbeddedResourceStream(filename);

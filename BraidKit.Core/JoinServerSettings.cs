@@ -1,4 +1,4 @@
-﻿using BraidKit.Core.Network;
+﻿using BraidKit.Network;
 using System.Runtime.InteropServices;
 
 namespace BraidKit.Core;

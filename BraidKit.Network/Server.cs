@@ -1,10 +1,9 @@
-﻿using BraidKit.Core.Game;
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Drawing;
 using System.Net;
 using System.Runtime.InteropServices;
 
-namespace BraidKit.Core.Network;
+namespace BraidKit.Network;
 
 public sealed class Server : IDisposable
 {

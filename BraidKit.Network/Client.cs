@@ -1,9 +1,8 @@
-﻿using BraidKit.Core.Game;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Runtime.InteropServices;
 
-namespace BraidKit.Core.Network;
+namespace BraidKit.Network;
 
 public sealed class Client : IDisposable
 {
