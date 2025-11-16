@@ -46,6 +46,12 @@ public sealed class Server : IDisposable
 
     private void HandlePlayerJoinRequest(PlayerJoinRequestPacket packet, IPEndPoint sender)
     {
+        if (packet.ApiVersion != ApiVersion.Current)
+        {
+            _udpHelper.SendPacket(PlayerJoinResponsePacket.Failed, sender);
+            return;
+        }
+
         // Handle race condition when multiple players join at the same time
         lock (_connectedPlayers)
         {

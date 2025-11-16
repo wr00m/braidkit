@@ -101,6 +101,8 @@ public sealed class Client : IDisposable
         if (!packet.Accepted)
         {
             Console.WriteLine("Connection request refused by server");
+            if (packet.ApiVersion != ApiVersion.Current)
+                Console.WriteLine($"Version mismatch: Client={ApiVersion.Current}, Server={packet.ApiVersion}");
             return;
         }
 

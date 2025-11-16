@@ -16,6 +16,7 @@ internal enum PacketType : byte
 internal unsafe readonly struct PlayerJoinRequestPacket(FixedLengthAsciiString playerName, PlayerColor playerColor = default)
 {
     public readonly PacketType PacketType = PacketType.PlayerJoinRequest;
+    public readonly byte ApiVersion = Network.ApiVersion.Current;
     public readonly FixedLengthAsciiString PlayerName = playerName;
     public readonly PlayerColor PlayerColor = playerColor;
 }
@@ -24,6 +25,7 @@ internal unsafe readonly struct PlayerJoinRequestPacket(FixedLengthAsciiString p
 internal unsafe readonly struct PlayerJoinResponsePacket(PlayerId playerId, FixedLengthAsciiString playerName, int accessToken = default, PlayerColor playerColor = default)
 {
     public readonly PacketType PacketType = PacketType.PlayerJoinResponse;
+    public readonly byte ApiVersion = Network.ApiVersion.Current;
     public readonly PlayerId PlayerId = playerId;
     public readonly int AccessToken = accessToken;
     public readonly PlayerColor PlayerColor = playerColor;
