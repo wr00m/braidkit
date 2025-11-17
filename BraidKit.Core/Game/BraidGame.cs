@@ -68,6 +68,11 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
     public GameValue<int> IdealHeight { get; } = new(_processMemoryHandler, 0x5f6a94, 720);
     public GameValue<int> ScreenWidth { get; } = new(_processMemoryHandler, 0x5f6a98); // desired_aperture_width
     public GameValue<int> ScreenHeight { get; } = new(_processMemoryHandler, 0x5f6a9c); // desired_aperture_height
+    private GameValue<int> SpeedrunFlags { get; } = new(_processMemoryHandler, 0x5f9428);
+    private GameValue<uint> SpeedrunNumFrames { get; } = new(_processMemoryHandler, 0x5f9434);
+
+    private bool IsSpeedrunModeActive => SpeedrunFlags != 0;
+    public uint SpeedrunFrameIndex => IsSpeedrunModeActive ? SpeedrunNumFrames : 0;
 
     public float Zoom
     {

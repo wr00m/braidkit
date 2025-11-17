@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -35,24 +36,42 @@ internal unsafe readonly struct PlayerJoinResponsePacket(PlayerId playerId, Fixe
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerStateUpdatePacket(PlayerId playerId, int accessToken, byte puzzlePieces, EntitySnapshot entitySnapshot)
+internal unsafe readonly struct PlayerStateUpdatePacket(PlayerId playerId, int accessToken, uint speedrunFrameIndex, byte puzzlePieces, EntitySnapshot entitySnapshot)
 {
     public readonly PacketType PacketType = PacketType.PlayerStateUpdate;
     public readonly PlayerId PlayerId = playerId;
     public readonly int AccessToken = accessToken;
+    public readonly uint SpeedrunFrameIndex = speedrunFrameIndex;
     public readonly byte PuzzlePieces = puzzlePieces;
     public readonly EntitySnapshot EntitySnapshot = entitySnapshot;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerStateBroadcastPacket(PlayerId playerId, FixedLengthAsciiString playerName, PlayerColor playerColor, byte puzzlePieces, EntitySnapshot entitySnapshot)
+internal unsafe readonly struct PlayerStateBroadcastPacket(PlayerId playerId, FixedLengthAsciiString playerName, PlayerColor playerColor, uint speedrunFrameIndex, byte puzzlePieces, EntitySnapshot entitySnapshot)
 {
     public readonly PacketType PacketType = PacketType.PlayerStateBroadcast;
     public readonly PlayerId PlayerId = playerId;
     public readonly PlayerColor PlayerColor = playerColor;
     public readonly FixedLengthAsciiString PlayerName = playerName;
+    public readonly uint SpeedrunFrameIndex = speedrunFrameIndex;
     public readonly byte PuzzlePieces = puzzlePieces;
     public readonly EntitySnapshot EntitySnapshot = entitySnapshot;
+}
+
+internal static class PacketParser
+{
+    public static bool TryParse<TPacket>(byte[] data, out TPacket result) where TPacket : unmanaged
+    {
+        var expectedSize = Unsafe.SizeOf<TPacket>();
+        if (data.Length != expectedSize)
+        {
+            result = default;
+            return false;
+        }
+
+        result = MemoryMarshal.Read<TPacket>(data);
+        return true;
+    }
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]

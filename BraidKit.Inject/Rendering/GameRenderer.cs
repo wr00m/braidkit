@@ -130,13 +130,14 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 new(visibleOtherPlayer.Color.ToRgba()));
         }
 
-        foreach (var (player, i) in players.OrderByPuzzlePieces().Select((x, i) => (x, i)))
+        foreach (var (player, i) in players.OrderByLeaderboardPosition().Select((x, i) => (x, i)))
         {
             const float margin = 10f;
+            const float lineHeight = 1.5f;
             _textRenderer.RenderText(
                 $"{player.PuzzlePieces} pcs ({player.EntitySnapshot.World}-{player.EntitySnapshot.Level}) {player.Name}",
                 margin,
-                margin + RenderSettings.FontSize * 2f * i,
+                margin + RenderSettings.FontSize * lineHeight * i,
                 HAlign.Left,
                 VAlign.Top,
                 RenderSettings.FontSize,

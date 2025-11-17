@@ -1,4 +1,5 @@
-﻿using BraidKit.Core.Helpers;
+﻿using BraidKit.Core;
+using BraidKit.Core.Helpers;
 using BraidKit.Network;
 using InjectDotnet;
 using System.Collections.Immutable;
@@ -10,13 +11,13 @@ namespace BraidKit.Commands;
 
 internal static partial class Commands
 {
+    private const string _officialServerAddress = "braidkit.serverpit.com";
+    private const string _localhost = "localhost";
     private const int _defaultPort = 55555;
 
-    public static Command ServerCommand =>
-        new Command("server", "Hosts a multiplayer server")
+    private static Command ServerHostCommand =>
+        new Command("server-host", "Hosts a multiplayer server")
         {
-            ServerJoinCommand,
-            ServerJoinTestCommand,
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
         }
         .SetBraidGameAction(parseResult =>
@@ -32,9 +33,9 @@ internal static partial class Commands
         });
 
     private static Command ServerJoinCommand =>
-        new Command("join", "Joins a multiplayer server")
+        new Command("server-join", "Joins a multiplayer server")
         {
-            new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => "127.0.0.1" },
+            new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => _officialServerAddress },
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
             new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
             new Option<KnownColor>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => default }.FormatEnumHelp("color"),
@@ -58,13 +59,20 @@ internal static partial class Commands
                 Console.WriteLine($"Joined server");
             else
                 Console.WriteLine($"Failed to join server");
+        });
 
+    private static Command ServerDisconnectCommand =>
+        new Command("server-disconnect", "Disconnects from current server")
+        .SetBraidGameAction((braidGame, parseResult) =>
+        {
+            braidGame.Process.InjectJoinServer(JoinServerSettings.Disconnect);
+            Console.WriteLine($"Disconnected from server");
         });
 
     private static Command ServerJoinTestCommand =>
-        new Command("join-test", "Joins a multiplayer server with test data")
+        new Command("server-join-test", "Joins a multiplayer server with test data")
         {
-            new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => "127.0.0.1" },
+            new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => _localhost },
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
             new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
             new Option<KnownColor>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => default }.FormatEnumHelp("color"),
@@ -108,7 +116,7 @@ internal static partial class Commands
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(random.Next(latency));
-                    client.SendPlayerStateUpdate(17, snapshot);
+                    client.SendPlayerStateUpdate((uint)snapshot.FrameIndex, 17, snapshot);
                 });
                 await Task.Delay(10);
             }

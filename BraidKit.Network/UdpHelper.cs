@@ -14,8 +14,9 @@ public sealed class UdpHelper : IDisposable
 
     public static bool TryResolveIPAdress(string ipOrDnsHostname, [NotNullWhen(true)] out IPAddress? ipAddress)
     {
-        // Not sure which one to choose if more than one, so just pick one at random
-        ipAddress = Dns.GetHostAddresses(ipOrDnsHostname).OrderBy(_ => Guid.NewGuid()).FirstOrDefault();
+        ipAddress = Dns.GetHostAddresses(ipOrDnsHostname)
+            .OrderByDescending(x => x.AddressFamily == AddressFamily.InterNetwork) // Prefer IPv4
+            .FirstOrDefault();
         return ipAddress != null;
     }
 

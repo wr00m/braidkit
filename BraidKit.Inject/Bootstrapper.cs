@@ -50,7 +50,7 @@ internal static class Bootstrapper
                     // This hook triggers more than once per frame, but client won't send duplicates to server
                     var puzzlePieces = _braidGame.CountAcquiredPuzzlePieces();
                     var snapshot = new EntitySnapshot(_braidGame.FrameCount, (byte)_braidGame.TimWorld, (byte)_braidGame.TimLevel, tim.Position, tim.FacingLeft, (byte)animationIndex, animationTime);
-                    _multiplayerClient.SendPlayerStateUpdate(puzzlePieces, snapshot);
+                    _multiplayerClient.SendPlayerStateUpdate(_braidGame.SpeedrunFrameIndex, puzzlePieces, snapshot);
                 }
             });
             _stopRenderingEntitiesHook = new(() =>

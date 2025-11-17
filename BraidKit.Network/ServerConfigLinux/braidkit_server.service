@@ -1,0 +1,20 @@
+# Instructions:
+# 1. Replace <username> placeholders
+# 2. Place file in /etc/systemd/system/ on server
+# 3. Run command: sudo systemctl enable braidkit_server.service
+
+[Unit]
+Description=BraidKit Server
+After=network.target
+
+[Service]
+Type=simple
+User=<username>
+WorkingDirectory=/home/<username>/braidkit
+ExecStart=/usr/bin/dotnet /home/<username>/braidkit/BraidKit.Network.dll
+Restart=always
+RestartSec=10
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+[Install]
+WantedBy=multi-user.target

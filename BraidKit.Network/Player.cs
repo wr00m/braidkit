@@ -9,24 +9,31 @@ internal class Player
     public required int AccessToken { get; init; }
     public required string Name { get; set; }
     public required PlayerColor Color { get; set; }
+    public required uint SpeedrunFrameIndex { get; set; }
     public required byte PuzzlePieces { get; set; }
     public required EntitySnapshot EntitySnapshot { get; set; }
     public required DateTime Updated { get; set; }
+
     public bool IsConnected => PlayerId != PlayerId.Unknown;
     public TimeSpan TimeSinceLastUpdate => DateTime.Now - Updated;
     public bool Stale => TimeSinceLastUpdate > TimeSpan.FromSeconds(2);
     public bool TimedOut => TimeSinceLastUpdate > TimeSpan.FromSeconds(30);
-    public PlayerSummary ToSummary(bool isOwnPlayer = false) => new(PlayerId, Name, Color, PuzzlePieces, EntitySnapshot, isOwnPlayer);
+    public PlayerSummary ToSummary(bool isOwnPlayer = false) => new(PlayerId, Name, Color, SpeedrunFrameIndex, PuzzlePieces, EntitySnapshot, isOwnPlayer);
 }
 
-public record PlayerSummary(PlayerId PlayerId, string Name, PlayerColor Color, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer);
+public record PlayerSummary(PlayerId PlayerId, string Name, PlayerColor Color, uint SpeedrunFrameIndex, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer)
+{
+    public float SpeedrunTimeSeconds => SpeedrunFrameIndex / 60f;
+}
 
 public static class PlayerExtensions
 {
-    public static IEnumerable<PlayerSummary> OrderByPuzzlePieces(this IEnumerable<PlayerSummary> items) => items
+    // TODO: This is kinda crude, should probably order by PuzzlePieces and then by SpeedrunFrameIndex for most recent puzzle piece
+    public static IEnumerable<PlayerSummary> OrderByLeaderboardPosition(this IEnumerable<PlayerSummary> items) => items
         .OrderByDescending(x => x.PuzzlePieces)
         .ThenByDescending(x => x.EntitySnapshot.World)
         .ThenByDescending(x => x.EntitySnapshot.Level)
+        .ThenByDescending(x => x.SpeedrunFrameIndex)
         .ThenBy(x => x.Name)
         .ThenBy(x => x.PlayerId.Value);
 }
@@ -49,5 +56,6 @@ public readonly record struct PlayerColor(KnownColor KnownColor)
     public static implicit operator PlayerColor(KnownColor x) => new(x);
     public static implicit operator Color(PlayerColor x) => Color.FromKnownColor(x.KnownColor);
     public uint ToRgba() { Color c = this; return (uint)((c.R) | (c.G << 8) | (c.B << 16) | (c.A << 24)); }
+    public string ToHex(string prefix = "#") { Color c = this; return $"{prefix}{c.R:X2}{c.G:X2}{c.B:X2}{c.A:X2}"; }
     public override string ToString() => KnownColor.ToString();
 }

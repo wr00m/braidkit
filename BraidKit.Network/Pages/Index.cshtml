@@ -1,0 +1,80 @@
+﻿@page
+@model BraidKit.Network.Pages.IndexModel
+@using BraidKit.Network
+
+@{
+    var backgroundUrl = $"https://www.davidhellman.net/braid/bg_{new Random().Next(2, 7)}_01.jpg";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>BraidKit Server</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <style>
+        html {
+            height: 100%;
+        }
+
+        body {
+            height: 100%;
+            background: white url('@backgroundUrl') center no-repeat;
+            background-size: cover;
+        }
+
+        .main {
+            margin: 0 auto;
+            max-width: 900px;
+        }
+
+        .header {
+            margin: 1rem 0;
+            text-shadow: .05rem .05rem .2rem white;
+        }
+
+        .player-name {
+            font-weight: 600;
+            text-shadow: .05rem .05rem .1rem black, .05rem .05rem .15rem black;
+        }
+
+        .footer {
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="main">
+        <div class="header">
+            <h1>BraidKit Server</h1>
+            <h2>Connected Players: @Model.Players.Count</h2>
+        </div>
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Level</th>
+                    <th>Pieces</th>
+                    <th>Timer</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var (player, index) in Model.Players.OrderByLeaderboardPosition().Select((x, i) => (x, i)))
+                {
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td class="player-name" style="color: @player.Color.ToHex();">@player.Name</td>
+                        <td>@player.EntitySnapshot.World-@player.EntitySnapshot.Level</td>
+                        <td>@player.PuzzlePieces</td>
+                        <td>@player.SpeedrunTimeSeconds.ToString("0.00") s</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="footer">
+            <a href="https://github.com/wr00m/braidkit" target="_blank" rel="noopener noreferrer">BraidKit on GitHub</a>
+        </div>
+    </div>
+</body>
+</html>

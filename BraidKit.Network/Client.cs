@@ -57,7 +57,7 @@ public sealed class Client : IDisposable
         _udpHelper.SendPacket(packet, _serverEndpoint);
     }
 
-    public void SendPlayerStateUpdate(int puzzlePieces, EntitySnapshot entitySnapshot)
+    public void SendPlayerStateUpdate(uint speedrunFrameIndex, int puzzlePieces, EntitySnapshot entitySnapshot)
     {
         if (!IsConnected)
             return;
@@ -66,9 +66,10 @@ public sealed class Client : IDisposable
         if (entitySnapshot.FrameIndex <= OwnPlayer.EntitySnapshot.FrameIndex)
             return;
 
+        OwnPlayer.SpeedrunFrameIndex = speedrunFrameIndex;
         OwnPlayer.PuzzlePieces = (byte)puzzlePieces;
         OwnPlayer.EntitySnapshot = entitySnapshot;
-        var packet = new PlayerStateUpdatePacket(OwnPlayer.PlayerId, OwnPlayer.AccessToken, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot);
+        var packet = new PlayerStateUpdatePacket(OwnPlayer.PlayerId, OwnPlayer.AccessToken, OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot);
         _udpHelper.SendPacket(packet, _serverEndpoint);
 
         // Remove stale players (there's probably a more suitable place to do this)
@@ -85,10 +86,12 @@ public sealed class Client : IDisposable
         switch (packetType)
         {
             case PacketType.PlayerJoinResponse:
-                HandlePlayerJoinResponse(MemoryMarshal.Read<PlayerJoinResponsePacket>(data));
+                if (PacketParser.TryParse<PlayerJoinResponsePacket>(data, out var playerJoinResponsePacket))
+                    HandlePlayerJoinResponse(playerJoinResponsePacket);
                 break;
             case PacketType.PlayerStateBroadcast:
-                HandlePlayerStateBroadcast(MemoryMarshal.Read<PlayerStateBroadcastPacket>(data));
+                if (PacketParser.TryParse<PlayerStateBroadcastPacket>(data, out var playerStateBroadcastPacket))
+                    HandlePlayerStateBroadcast(playerStateBroadcastPacket);
                 break;
             default:
                 Console.WriteLine($"Unsupported packet type: {packetType}");
@@ -112,6 +115,7 @@ public sealed class Client : IDisposable
             AccessToken = packet.AccessToken,
             Name = packet.PlayerName,
             Color = packet.PlayerColor,
+            SpeedrunFrameIndex = default,
             PuzzlePieces = default,
             EntitySnapshot = EntitySnapshot.Empty,
             Updated = DateTime.Now,
@@ -133,6 +137,7 @@ public sealed class Client : IDisposable
 
             player.Name = packet.PlayerName;
             player.Color = packet.PlayerColor;
+            player.SpeedrunFrameIndex = packet.SpeedrunFrameIndex;
             player.PuzzlePieces = packet.PuzzlePieces;
             player.EntitySnapshot = packet.EntitySnapshot;
             player.Updated = DateTime.Now;
@@ -145,6 +150,7 @@ public sealed class Client : IDisposable
                 AccessToken = default,
                 Name = packet.PlayerName,
                 Color = packet.PlayerColor,
+                SpeedrunFrameIndex = packet.SpeedrunFrameIndex,
                 PuzzlePieces = packet.PuzzlePieces,
                 EntitySnapshot = packet.EntitySnapshot,
                 Updated = DateTime.Now,

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Drawing;
 using System.Net;
-using System.Runtime.InteropServices;
 
 namespace BraidKit.Network;
 
@@ -9,8 +8,7 @@ public sealed class Server : IDisposable
 {
     private readonly UdpHelper _udpHelper;
     private readonly Dictionary<IPEndPoint, Player> _connectedPlayers = [];
-
-    // TODO: Re-enqueue disconnected player ids and/or kick stalest player out when we run out of ids
+    public List<PlayerSummary> GetPlayers() => [.. _connectedPlayers.Values.Where(x => !x.TimedOut).Select(x => x.ToSummary())];
 
     public Server(int port)
     {
@@ -33,10 +31,13 @@ public sealed class Server : IDisposable
         switch (packetType)
         {
             case PacketType.PlayerJoinRequest:
-                HandlePlayerJoinRequest(MemoryMarshal.Read<PlayerJoinRequestPacket>(data), sender);
+                if (PacketParser.TryParse<PlayerJoinRequestPacket>(data, out var playerJoinRequestPacket))
+                    HandlePlayerJoinRequest(playerJoinRequestPacket, sender);
+                // TODO: Maybe respond with PlayerJoinResponsePacket.Failed if parse failed (e.g., wrong packet size due to API version mismatch)
                 break;
             case PacketType.PlayerStateUpdate:
-                HandlePlayerStateUpdate(MemoryMarshal.Read<PlayerStateUpdatePacket>(data), sender);
+                if (PacketParser.TryParse<PlayerStateUpdatePacket>(data, out var playerStateUpdatePacket))
+                    HandlePlayerStateUpdate(playerStateUpdatePacket, sender);
                 break;
             default:
                 Console.WriteLine($"Unsupported packet type: {packetType}");
@@ -80,6 +81,7 @@ public sealed class Server : IDisposable
                     AccessToken = new Random().Next(1, int.MaxValue),
                     Name = !string.IsNullOrWhiteSpace(packet.PlayerName) ? packet.PlayerName : $"{playerColor.KnownColor} Tim",
                     Color = playerColor,
+                    SpeedrunFrameIndex = default,
                     PuzzlePieces = default,
                     EntitySnapshot = EntitySnapshot.Empty,
                     Updated = DateTime.Now,
@@ -113,6 +115,7 @@ public sealed class Server : IDisposable
         if (packet.EntitySnapshot.FrameIndex <= player.EntitySnapshot.FrameIndex)
             return;
 
+        player.SpeedrunFrameIndex = packet.SpeedrunFrameIndex;
         player.PuzzlePieces = packet.PuzzlePieces;
         player.EntitySnapshot = packet.EntitySnapshot;
         player.Updated = DateTime.Now;
@@ -121,12 +124,10 @@ public sealed class Server : IDisposable
         var otherPlayers = _connectedPlayers.Keys.Except([sender]).ToList();
         if (otherPlayers.Count > 0)
         {
-            var broadcastPacket = new PlayerStateBroadcastPacket(player.PlayerId, player.Name, player.Color, player.PuzzlePieces, player.EntitySnapshot);
+            var broadcastPacket = new PlayerStateBroadcastPacket(player.PlayerId, player.Name, player.Color, player.SpeedrunFrameIndex, player.PuzzlePieces, player.EntitySnapshot);
             foreach (var otherPlayer in otherPlayers)
                 _udpHelper.SendPacket(broadcastPacket, otherPlayer);
         }
-
-        //Console.WriteLine($"Player updated: X={packet.PlayerPosition.X:0.##} Y={packet.PlayerPosition.Y:0.##}");
     }
 
     private bool TryGetNextUniquePlayerId(out PlayerId result)
@@ -139,20 +140,35 @@ public sealed class Server : IDisposable
     private PlayerColor GetPreferablyUniqueColor()
     {
         var takenColors = _connectedPlayers.Values.Select(x => x.Color.KnownColor).ToHashSet();
-        var result = _prioritizedColors.FirstOrDefault(x => !takenColors.Contains(x), KnownColor.White);
-        return result;
+        var unusedColors = _prioritizedColors.Except(takenColors).ToList();
+        return unusedColors.Count > 0 ? unusedColors.GetRandom() : _prioritizedColors.GetRandom();
     }
 
-    // TODO: Rework this list with bright, easily readable colors
     private static readonly ImmutableList<KnownColor> _prioritizedColors = [
-        KnownColor.OrangeRed,
         KnownColor.Cyan,
         KnownColor.Yellow,
         KnownColor.Green,
         KnownColor.Purple,
+        KnownColor.Red,
         KnownColor.Orange,
         KnownColor.Pink,
         KnownColor.Red,
         KnownColor.Blue,
+        KnownColor.Gold,
+        KnownColor.Magenta,
+        KnownColor.Violet,
+        KnownColor.Chocolate,
+        KnownColor.Teal,
+        KnownColor.Aquamarine,
+        KnownColor.Khaki,
+        KnownColor.White,
     ];
+}
+
+internal static class CollectionHelper
+{
+    public static T? GetRandom<T>(this ICollection<T> items, T? defaultIfEmpty = default)
+    {
+        return items.Count > 0 ? items.ElementAt(new Random().Next(0, items.Count)) : defaultIfEmpty;
+    }
 }

@@ -6,7 +6,7 @@ namespace BraidKit.Commands;
 
 internal static partial class Commands
 {
-    public static Command WatchValueCommand =>
+    private static Command WatchValueCommand =>
         new Command("watch-value", "Monitors a value in real-time")
         {
             new Argument<WatchValue>("value").FormatEnumHelp(),
