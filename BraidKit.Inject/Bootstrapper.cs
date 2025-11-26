@@ -117,7 +117,7 @@ internal static class Bootstrapper
 
             // TODO: Get player name from Steam?
             _multiplayerClient = new(serverIP, args.ServerPort);
-            var connected = _multiplayerClient.ConnectToServer(args.PlayerName).Result;
+            var connected = _multiplayerClient.ConnectToServer(args.PlayerName, args.PlayerColor).Result;
 
             return connected ? 1 : 0;
         }
