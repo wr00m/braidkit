@@ -133,10 +133,18 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
 
     public void AddWatermark() => _processMemoryHandler.Write(0x00507bda, 0x00579e10);
 
-    private const int _entityManagerPointerAddr = 0x5f6dec; // Entity manager at 0x5f6de8 can temporarily change, but 0x5f6dec seems stable
+    public bool IsUsualEntityManagerActive()
+    {
+        var usualEntityManagerPointer = _processMemoryHandler.Read<int>(_usualEntityManagerPointerAddr);
+        var currentEntityManagerPointer = _processMemoryHandler.Read<int>(_currentEntityManagerPointerAddr);
+        return currentEntityManagerPointer != default && currentEntityManagerPointer == usualEntityManagerPointer;
+    }
+
+    private const int _currentEntityManagerPointerAddr = 0x5f6de8; // This pointer can temporarily change depending on what's being rendered
+    private const int _usualEntityManagerPointerAddr = 0x5f6dec; // This pointer is stable
     public List<Entity> GetEntities()
     {
-        var entityManagerAddr = _processMemoryHandler.Read<int>(_entityManagerPointerAddr);
+        var entityManagerAddr = _processMemoryHandler.Read<int>(_usualEntityManagerPointerAddr);
         var entityAddrs = new AutoArray<int>(_processMemoryHandler, entityManagerAddr + 0xc).GetAllItems();
         var entities = entityAddrs.Select(x => new Entity(_processMemoryHandler, x)).ToList();
         return entities;
@@ -145,7 +153,7 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
     private IEnumerable<Entity> GetEntitiesByPortableType(PortableTypeAddr portableTypeAddr)
     {
         var portableType = new PortableType(_processMemoryHandler, portableTypeAddr);
-        var linkedListArrayAddr = new PointerPath(_processMemoryHandler, _entityManagerPointerAddr, 0x30).GetAddress();
+        var linkedListArrayAddr = new PointerPath(_processMemoryHandler, _usualEntityManagerPointerAddr, 0x30).GetAddress();
         if (linkedListArrayAddr is null)
             return [];
 

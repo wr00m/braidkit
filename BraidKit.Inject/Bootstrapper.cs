@@ -56,7 +56,8 @@ internal static class Bootstrapper
             _stopRenderingEntitiesHook = new(() =>
             {
                 // Render other players
-                if (IsConnected)
+                // Note: Checking which entity manager is active (hopefully) prevents random Tim clones that otherwise appear on screen sometimes
+                if (IsConnected && _braidGame.IsUsualEntityManagerActive())
                     foreach (var player in _multiplayerClient.GetPlayers().Where(x => !x.IsOwnPlayer).Select(x => x.EntitySnapshot))
                         if (player.World == _braidGame.TimWorld && player.Level == _braidGame.TimLevel && _braidGame.TryCreateTimGameQuad(player, out var gameQuad, 0x80ffffff))
                             _braidGame.AddGameQuad(gameQuad);

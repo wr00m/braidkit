@@ -165,7 +165,7 @@ public sealed class Server : IDisposable
     ];
 }
 
-internal static class CollectionHelper
+public static class CollectionHelper
 {
     public static T? GetRandom<T>(this ICollection<T> items, T? defaultIfEmpty = default)
     {
