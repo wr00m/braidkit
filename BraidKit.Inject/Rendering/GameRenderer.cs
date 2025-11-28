@@ -119,7 +119,9 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
         foreach (var visibleOtherPlayer in visibleOtherPlayers)
         {
+            var fadedColor = new Color4(visibleOtherPlayer.Color.ToVector4() * _braidGame.EntityVertexColorScale);
             var playerScreenPos = Vector2.Transform(visibleOtherPlayer.EntitySnapshot.Position, worldToScreenMtx);
+
             _textRenderer.RenderText(
                 visibleOtherPlayer.Name,
                 playerScreenPos.X,
@@ -127,7 +129,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 HAlign.Center,
                 VAlign.Top,
                 RenderSettings.FontSize,
-                new(visibleOtherPlayer.Color.ToRgba()));
+                fadedColor);
         }
 
         foreach (var (player, i) in players.OrderByLeaderboardPosition().Select((x, i) => (x, i)))

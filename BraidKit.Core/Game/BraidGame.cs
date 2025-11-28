@@ -169,7 +169,10 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
     public Entity GetTim() => GetTimOrNull() ?? throw new Exception("Where's Tim?");
     public GreeterEntity? GetDinosaurAkaGreeter() => GetEntitiesByPortableType(PortableTypeAddr.Greeter).FirstOrDefault()?.AsGreeter();
     public List<Entity> GetPuzzleFrames() => [.. GetEntitiesByPortableType(PortableTypeAddr.PuzzleFrame)];
-    public GameValue<SpriteAnimationSet> TimSpriteAnimationSet = new(_processMemoryHandler, _processMemoryHandler.Read<IntPtr>(0x5f71e4));
+    public GameValue<SpriteAnimationSet> TimSpriteAnimationSet { get; } = new(_processMemoryHandler, _processMemoryHandler.Read<IntPtr>(0x5f71e4));
+
+    /// <summary>Fades to black during level transitions</summary>
+    public GameValue<Vector4> EntityVertexColorScale { get; } = new(_processMemoryHandler, 0x5f7070);
 
     private const int _puzzleWorldCount = 5;
     private const int _pieceCountPerPuzzle = 12;
@@ -277,7 +280,7 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
         return true;
     }
 
-    public GameValue<int> NumGameQuads = new(_processMemoryHandler, 0x63f5f0);
+    public GameValue<int> NumGameQuads { get; } = new(_processMemoryHandler, 0x63f5f0);
 
     public void AddGameQuad(GameQuad gameQuad)
     {

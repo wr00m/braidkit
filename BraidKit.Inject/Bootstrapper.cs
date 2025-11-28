@@ -6,8 +6,10 @@ using BraidKit.Network;
 using InjectDotnet.NativeHelper.Native;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D9;
+using Vortice.Mathematics;
 
 namespace BraidKit.Inject;
 
@@ -58,9 +60,22 @@ internal static class Bootstrapper
                 // Render other players
                 // Note: Checking which entity manager is active (hopefully) prevents random Tim clones that otherwise appear on screen sometimes
                 if (IsConnected && _braidGame.IsUsualEntityManagerActive())
-                    foreach (var player in _multiplayerClient.GetPlayers().Where(x => !x.IsOwnPlayer).Select(x => x.EntitySnapshot))
-                        if (player.World == _braidGame.TimWorld && player.Level == _braidGame.TimLevel && _braidGame.TryCreateTimGameQuad(player, out var gameQuad, 0x80ffffff))
+                {
+                    var playersToRender = _multiplayerClient
+                        .GetPlayers()
+                        .Where(x => !x.IsOwnPlayer && x.EntitySnapshot.World == _braidGame.TimWorld && x.EntitySnapshot.Level == _braidGame.TimLevel)
+                        .ToList();
+
+                    if (playersToRender.Count > 0)
+                    {
+                        var playerColor = new Vector4(1f, 1f, 1f, .5f); // Semi-transparent
+                        var fadedColor = new Color4(playerColor * _braidGame.EntityVertexColorScale);
+
+                        foreach (var player in playersToRender)
+                            if (_braidGame.TryCreateTimGameQuad(player.EntitySnapshot, out var gameQuad, fadedColor.ToRgba()))
                             _braidGame.AddGameQuad(gameQuad);
+                    }
+                }
             });
         }
         catch (Exception ex)
@@ -106,15 +121,11 @@ internal static class Bootstrapper
             var serverAddress = new string(MemoryMarshal.CreateReadOnlySpanFromNullTerminated((char*)args.ServerAddress));
             NativeMethods.VirtualFree(args.ServerAddress, 0, FreeType.Release);
 
-            //Logger.Log($"Server address: {serverAddress}");
-
             if (!UdpHelper.TryResolveIPAddress(serverAddress, out var serverIP))
             {
                 Logger.Log($"Invalid server IP address or hostname: {serverAddress}");
                 return 0;
             }
-
-            //Logger.Log($"Server IP: {serverIP}");
 
             // TODO: Get player name from Steam?
             _multiplayerClient = new(serverIP, args.ServerPort);
