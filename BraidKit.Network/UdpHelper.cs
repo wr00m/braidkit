@@ -12,12 +12,20 @@ public sealed class UdpHelper : IDisposable
     private readonly Thread _thread;
     private readonly Action<byte[], IPEndPoint> _packetReceivedCallback;
 
-    public static bool TryResolveIPAdress(string ipOrDnsHostname, [NotNullWhen(true)] out IPAddress? ipAddress)
+    public static bool TryResolveIPAddress(string ipOrDnsHostname, [NotNullWhen(true)] out IPAddress? ipAddress)
     {
-        ipAddress = Dns.GetHostAddresses(ipOrDnsHostname)
-            .OrderByDescending(x => x.AddressFamily == AddressFamily.InterNetwork) // Prefer IPv4
-            .FirstOrDefault();
-        return ipAddress != null;
+        try
+        {
+            ipAddress = Dns.GetHostAddresses(ipOrDnsHostname)
+                .OrderByDescending(x => x.AddressFamily == AddressFamily.InterNetwork) // Prefer IPv4
+                .FirstOrDefault();
+            return ipAddress != null;
+        }
+        catch (SocketException)
+        {
+            ipAddress = null;
+            return false;
+        }
     }
 
     public UdpHelper(int clientPort, Action<byte[], IPEndPoint> packetReceivedCallback)

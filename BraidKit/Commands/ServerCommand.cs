@@ -87,7 +87,7 @@ internal static partial class Commands
             var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
             var latency = parseResult.GetRequiredValue<int>("--latency");
 
-            if (!UdpHelper.TryResolveIPAdress(serverAddress, out var serverIP))
+            if (!UdpHelper.TryResolveIPAddress(serverAddress, out var serverIP))
             {
                 ConsoleHelper.WriteError($"Invalid server IP address or hostname: {serverAddress}");
                 return;

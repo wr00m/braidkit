@@ -17,7 +17,7 @@ internal class InputDevicesUpdateHook : IDisposable
     {
         // Setup hook/trampoline
         var @delegate = new InputDevicesUpdateDelegate(HookCallbackFunction);
-        _gcHandle = GCHandle.Alloc(@delegate); // Pin memory adress, or stuff will break during garbage collection
+        _gcHandle = GCHandle.Alloc(@delegate); // Pin memory address, or stuff will break during garbage collection
         var hookFuncPtr = Marshal.GetFunctionPointerForDelegate(@delegate);
         _hookAction = hookAction;
         const IntPtr inputDevicesUpdateAddr = 0x5317b0;

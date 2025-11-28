@@ -24,7 +24,7 @@ internal class EndSceneHook : IDisposable
 
         // Setup hook/trampoline
         var @delegate = new EndSceneDelegate(HookCallbackFunction);
-        _gcHandle = GCHandle.Alloc(@delegate); // Pin memory adress, or stuff will break during garbage collection
+        _gcHandle = GCHandle.Alloc(@delegate); // Pin memory address, or stuff will break during garbage collection
         var hookFuncPtr = Marshal.GetFunctionPointerForDelegate(@delegate);
         _hookAction = hookAction;
         _jumpHook = JumpHook.Create(endSceneAddr, hookFuncPtr) ?? throw new Exception("Failed to create hook");

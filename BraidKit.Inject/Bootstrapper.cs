@@ -108,7 +108,7 @@ internal static class Bootstrapper
 
             //Logger.Log($"Server address: {serverAddress}");
 
-            if (!UdpHelper.TryResolveIPAdress(serverAddress, out var serverIP))
+            if (!UdpHelper.TryResolveIPAddress(serverAddress, out var serverIP))
             {
                 Logger.Log($"Invalid server IP address or hostname: {serverAddress}");
                 return 0;
