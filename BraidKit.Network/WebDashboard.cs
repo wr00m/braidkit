@@ -9,6 +9,7 @@ public static class WebDashboard
         builder.Services.AddSingleton(server);
 
         var app = builder.Build();
+        app.UseStaticFiles();
         app.MapRazorPages();
 
         await app.RunAsync($"http://0.0.0.0:{port}");
