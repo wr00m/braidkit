@@ -105,7 +105,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
     public void RenderPlayerLabelsAndLeaderboard(List<PlayerSummary> players)
     {
-        if (_braidGame.InMainMenu || _braidGame.InPuzzleAssemblyScreen)
+        if (_braidGame.InMainMenu)
             return;
 
         var world = _braidGame.TimWorld.Value;
@@ -117,27 +117,37 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         _textRenderer.Activate();
         _textRenderer.SetViewProjectionMatrix(screenMtx);
 
-        foreach (var visibleOtherPlayer in visibleOtherPlayers)
-        {
-            var fadedColor = new Color4(visibleOtherPlayer.Color.ToVector4() * _braidGame.EntityVertexColorScale);
-            var playerScreenPos = Vector2.Transform(visibleOtherPlayer.EntitySnapshot.Position, worldToScreenMtx);
+        // Render player names below sprites
+        if (!_braidGame.InPuzzleAssemblyScreen)
+            foreach (var visibleOtherPlayer in visibleOtherPlayers)
+            {
+                var fadedColor = new Color4(visibleOtherPlayer.Color.ToVector4() * _braidGame.EntityVertexColorScale);
+                var playerScreenPos = Vector2.Transform(visibleOtherPlayer.EntitySnapshot.Position, worldToScreenMtx);
 
-            _textRenderer.RenderText(
-                visibleOtherPlayer.Name,
-                playerScreenPos.X,
-                playerScreenPos.Y,
-                HAlign.Center,
-                VAlign.Top,
-                RenderSettings.FontSize,
-                fadedColor);
-        }
+                _textRenderer.RenderText(
+                    visibleOtherPlayer.Name,
+                    playerScreenPos.X,
+                    playerScreenPos.Y,
+                    HAlign.Center,
+                    VAlign.Top,
+                    RenderSettings.FontSize,
+                    fadedColor);
+            }
 
+        // Render leaderboard
         foreach (var (player, i) in players.OrderByLeaderboardPosition().Select((x, i) => (x, i)))
         {
             const float margin = 10f;
             const float lineHeight = 1.5f;
+
+            var text = $"{player.PuzzlePieces} pcs ({player.EntitySnapshot.World}-{player.EntitySnapshot.Level}) {player.Name}";
+
+            // Render speedrun timers when in puzzle screen
+            if (_braidGame.InPuzzleAssemblyScreen)
+                text = $"{text} ({player.SpeedrunTimeSeconds:0.00})";
+
             _textRenderer.RenderText(
-                $"{player.PuzzlePieces} pcs ({player.EntitySnapshot.World}-{player.EntitySnapshot.Level}) {player.Name}",
+                text,
                 margin,
                 margin + RenderSettings.FontSize * lineHeight * i,
                 HAlign.Left,

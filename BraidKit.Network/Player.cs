@@ -10,7 +10,7 @@ internal class Player
     public required int AccessToken { get; init; }
     public required string Name { get; set; }
     public required PlayerColor Color { get; set; }
-    public required uint SpeedrunFrameIndex { get; set; }
+    public required uint SpeedrunFrameIndex { get; set; } // Frame count since start of speedrun (if speedrun mode is active)
     public required byte PuzzlePieces { get; set; }
     public required EntitySnapshot EntitySnapshot { get; set; }
     public required DateTime Updated { get; set; }
@@ -34,7 +34,7 @@ public static class PlayerExtensions
         .OrderByDescending(x => x.PuzzlePieces)
         .ThenByDescending(x => x.EntitySnapshot.World)
         .ThenByDescending(x => x.EntitySnapshot.Level)
-        .ThenByDescending(x => x.SpeedrunFrameIndex)
+        .ThenBy(x => x.SpeedrunFrameIndex)
         .ThenBy(x => x.Name)
         .ThenBy(x => x.PlayerId.Value);
 }

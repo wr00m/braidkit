@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using System.Runtime.InteropServices;
 
 namespace BraidKit.Network;
 
@@ -69,12 +68,23 @@ public sealed class Client : IDisposable
         OwnPlayer.SpeedrunFrameIndex = speedrunFrameIndex;
         OwnPlayer.PuzzlePieces = (byte)puzzlePieces;
         OwnPlayer.EntitySnapshot = entitySnapshot;
+        OwnPlayer.Updated = DateTime.Now;
+
         var packet = new PlayerStateUpdatePacket(OwnPlayer.PlayerId, OwnPlayer.AccessToken, OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot);
         _udpHelper.SendPacket(packet, _serverEndpoint);
 
         // Remove stale players (there's probably a more suitable place to do this)
         var stalePlayerIds = _otherPlayers.Values.Where(x => x.Stale).Select(x => x.PlayerId).ToList();
         stalePlayerIds.ForEach(x => _otherPlayers.Remove(x));
+    }
+
+    /// <summary>Updates current player state with new frame index (used to send keep-alive packet when game is paused)</summary>
+    public void SendPlayerStateUpdate(int frameIndex)
+    {
+        if (!IsConnected)
+            return;
+
+        SendPlayerStateUpdate(OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot with { FrameIndex = frameIndex });
     }
 
     private void OnPacketReceived(byte[] data, IPEndPoint sender)

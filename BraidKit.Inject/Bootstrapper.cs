@@ -40,16 +40,17 @@ internal static class Bootstrapper
             {
                 _gameRenderer.Render();
 
-                // Render other player names
                 if (IsConnected)
+                {
+                    _multiplayerClient.SendPlayerStateUpdate(_braidGame.FrameCount);
                     _gameRenderer.RenderPlayerLabelsAndLeaderboard(_multiplayerClient.GetPlayers());
+                }
             });
             _getGuyAnimationIndexAndDurationHook = new((entityAddr, animationIndex, animationTime) =>
             {
-                // Send Tim's position to server
+                // Note: This hook triggers more than once per frame
                 if (IsConnected && _braidGame.TryGetTim(out var tim) && tim.Addr == entityAddr)
                 {
-                    // This hook triggers more than once per frame, but client won't send duplicates to server
                     var puzzlePieces = _braidGame.CountAcquiredPuzzlePieces();
                     var snapshot = new EntitySnapshot(_braidGame.FrameCount, (byte)_braidGame.TimWorld, (byte)_braidGame.TimLevel, tim.Position, tim.FacingLeft, (byte)animationIndex, animationTime);
                     _multiplayerClient.SendPlayerStateUpdate(_braidGame.SpeedrunFrameIndex, puzzlePieces, snapshot);
@@ -73,7 +74,7 @@ internal static class Bootstrapper
 
                         foreach (var player in playersToRender)
                             if (_braidGame.TryCreateTimGameQuad(player.EntitySnapshot, out var gameQuad, fadedColor.ToRgba()))
-                            _braidGame.AddGameQuad(gameQuad);
+                                _braidGame.AddGameQuad(gameQuad);
                     }
                 }
             });
