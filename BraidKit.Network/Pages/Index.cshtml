@@ -40,7 +40,8 @@
         }
 
         .footer {
-            text-align: right;
+            display: flex;
+            justify-content: space-between;
         }
     </style>
 </head>
@@ -74,6 +75,7 @@
             </tbody>
         </table>
         <div class="footer">
+            <div>API version @ApiVersion.Current</div>
             <a href="https://github.com/wr00m/braidkit" target="_blank" rel="noopener noreferrer">BraidKit on GitHub</a>
         </div>
     </div>
