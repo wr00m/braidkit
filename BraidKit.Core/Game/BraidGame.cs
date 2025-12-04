@@ -174,37 +174,10 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
     /// <summary>Fades to black during level transitions</summary>
     public GameValue<Vector4> EntityVertexColorScale { get; } = new(_processMemoryHandler, 0x5f7070);
 
-    private const int _puzzleWorldCount = 5;
-    private const int _pieceCountPerPuzzle = 12;
-
-    private static IntPtr GetPuzzlePieceAddr(int world, int piece)
-    {
-        const IntPtr initialPuzzlePieceAddr = 0x5f7584;
-        const IntPtr worldPuzzlePieceOffset = 0x18c;
-        const IntPtr individualPuzzlePieceOffset = 0x20;
-
-        if (world < 0 || world >= _puzzleWorldCount || piece < 0 || piece >= _pieceCountPerPuzzle)
-            return IntPtr.Zero;
-
-        var puzzlePieceAddr = initialPuzzlePieceAddr + worldPuzzlePieceOffset * world + individualPuzzlePieceOffset * piece;
-        return puzzlePieceAddr;
-    }
-
-    private static IEnumerable<IntPtr> EnumeratePuzzlePieceAcquiredAddrs()
-    {
-        for (int world = 0; world < _puzzleWorldCount; world++)
-            for (int piece = 0; piece < _pieceCountPerPuzzle; piece++)
-                yield return GetPuzzlePieceAddr(world, piece);
-    }
-
-    public int CountAcquiredPuzzlePieces() => EnumeratePuzzlePieceAcquiredAddrs().Sum(addr => _processMemoryHandler.Read<bool>(addr) ? 1 : 0);
-
-    public void ResetPieces()
-    {
-        // Note: Pieces in current level don't reset, but maybe that's good since we don't want to reset pieces during level fadeout
-        foreach (var puzzlePieceAddr in EnumeratePuzzlePieceAcquiredAddrs())
-            _processMemoryHandler.Write(puzzlePieceAddr, false);
-    }
+    private const IntPtr _gameGlobalsAddr = 0x5f6990;
+    public CampaignState UsualCampaignState => new(_processMemoryHandler, _gameGlobalsAddr + 0x890); // Non-speedrun state
+    public CampaignState SpeedrunCampaignState => new(_processMemoryHandler, _gameGlobalsAddr + 0x18e0);
+    public CampaignState CurrentCampaignState => IsSpeedrunModeActive ? SpeedrunCampaignState : UsualCampaignState;
 
     public bool TryGetTimSprite(EntitySnapshot entity, out RectangleF world, out RectangleF uv, out IntPtr textureMapAddr)
     {
@@ -220,7 +193,7 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
         var animationAddr = _processMemoryHandler.Read<IntPtr>(animationSet.AnimationArray + sizeof(int) * entity.AnimationIndex);
         var animation = _processMemoryHandler.Read<SpriteAnimation>(animationAddr);
 
-        // TODO: Frame index is a bit off compared to original Tim entity, should be fixed
+        // TODO: Frame index seems a bit off compared to original Tim entity -- is it not calculated correctly?
         var normTime = animation.Duration > 0f ? entity.AnimationTime / animation.Duration : 0f; // Normalize time
         normTime = (normTime % 1f + 1f) % 1f; // Repeat time [0..1)
         var frameIndex = (int)(normTime * animation.NumFrames); // [0..NumFrames-1]

@@ -51,7 +51,7 @@ internal static class Bootstrapper
                 // Note: This hook triggers more than once per frame
                 if (IsConnected && _braidGame.TryGetTim(out var tim) && tim.Addr == entityAddr)
                 {
-                    var puzzlePieces = _braidGame.CountAcquiredPuzzlePieces();
+                    var puzzlePieces = _braidGame.CurrentCampaignState.CountAcquiredPuzzlePieces();
                     var snapshot = new EntitySnapshot(_braidGame.FrameCount, (byte)_braidGame.TimWorld, (byte)_braidGame.TimLevel, tim.Position, tim.FacingLeft, (byte)animationIndex, animationTime);
                     _multiplayerClient.SendPlayerStateUpdate(_braidGame.SpeedrunFrameIndex, puzzlePieces, snapshot);
                 }

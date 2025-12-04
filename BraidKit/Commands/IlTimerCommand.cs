@@ -138,7 +138,7 @@ internal class IlTimer
 
             // TODO: Maybe this should be moved to Restart() so reset also happens when F1 is pressed?
             if (_resetPieces)
-                _braidGame.ResetPieces();
+                _braidGame.UsualCampaignState.ResetPieces();
         }
 
         return true;

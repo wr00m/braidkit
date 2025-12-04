@@ -8,6 +8,6 @@ internal static partial class Commands
         new Command("reset-pieces", "Resets all puzzle pieces for current save")
         .SetBraidGameAction((braidGame, parseResult) =>
         {
-            braidGame.ResetPieces();
+            braidGame.UsualCampaignState.ResetPieces();
         });
 }
