@@ -103,7 +103,7 @@ internal static class Bootstrapper
     }
 
     [STAThread]
-    public unsafe static int JoinServer(IntPtr argsAddr, int _)
+    public static int JoinServer(IntPtr argsAddr, int _)
     {
         try
         {
@@ -119,18 +119,22 @@ internal static class Bootstrapper
             if (args.ServerAddress == IntPtr.Zero)
                 return 0;
 
-            var serverAddress = new string(MemoryMarshal.CreateReadOnlySpanFromNullTerminated((char*)args.ServerAddress));
+            var serverAddress = Marshal.PtrToStringUni(args.ServerAddress)!;
             NativeMethods.VirtualFree(args.ServerAddress, 0, FreeType.Release);
 
-            if (!UdpHelper.TryResolveIPAddress(serverAddress, out var serverIP))
+            var connected = Task.Run(async () =>
             {
-                Logger.Log($"Invalid server IP address or hostname: {serverAddress}");
-                return 0;
-            }
+                var serverIP = await UdpHelper.ResolveIPAddress(serverAddress);
+                if (serverIP is null)
+                {
+                    Logger.Log($"Invalid server IP address or hostname: {serverAddress}");
+                    return false;
+                }
 
-            // TODO: Get player name from Steam?
-            _multiplayerClient = new(serverIP, args.ServerPort);
-            var connected = _multiplayerClient.ConnectToServer(args.PlayerName, args.PlayerColor).Result;
+                // TODO: Get player name from Steam?
+                _multiplayerClient = new(serverIP, args.ServerPort);
+                return await _multiplayerClient.ConnectToServer(args.PlayerName, args.PlayerColor);
+            }).GetAwaiter().GetResult();
 
             return connected ? 1 : 0;
         }

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -12,20 +11,36 @@ public sealed class UdpHelper : IDisposable
     private readonly Thread _thread;
     private readonly Action<byte[], IPEndPoint> _packetReceivedCallback;
 
-    public static bool TryResolveIPAddress(string ipOrDnsHostname, [NotNullWhen(true)] out IPAddress? ipAddress)
+    public static async Task<IPAddress?> ResolveIPAddress(string ipOrDnsHostname, int maxAttempts = 10, int retryWaitMs = 500)
     {
-        try
+        for (int i = 0; i < maxAttempts; i++)
         {
-            ipAddress = Dns.GetHostAddresses(ipOrDnsHostname)
-                .OrderByDescending(x => x.AddressFamily == AddressFamily.InterNetwork) // Prefer IPv4
-                .FirstOrDefault();
-            return ipAddress != null;
+            try
+            {
+                var ipAddresses = await Dns.GetHostAddressesAsync(ipOrDnsHostname);
+
+                // Prefer IPv4, fallback to IPv6
+                var ipAddress = ipAddresses
+                    .OrderByDescending(x => x.AddressFamily == AddressFamily.InterNetwork)
+                    .FirstOrDefault();
+
+                return ipAddress;
+            }
+            catch (SocketException ex) when (IsTransientError(ex.SocketErrorCode))
+            {
+                // Retry if transient error and not last attempt
+                if (i < maxAttempts - 1)
+                    await Task.Delay(retryWaitMs);
+            }
+            catch (SocketException ex)
+            {
+                // Give up if non-transient error
+                await Console.Error.WriteLineAsync($"Socket error: {ex.SocketErrorCode}");
+                return null;
+            }
         }
-        catch (SocketException)
-        {
-            ipAddress = null;
-            return false;
-        }
+
+        return null;
     }
 
     public UdpHelper(int clientPort, Action<byte[], IPEndPoint> packetReceivedCallback)
@@ -100,4 +115,14 @@ public sealed class UdpHelper : IDisposable
         const int SIO_UDP_CONNRESET = -1744830452;
         socket.IOControl((IOControlCode)SIO_UDP_CONNRESET, [0], null);
     }
+
+    private static bool IsTransientError(SocketError error) => error
+        is SocketError.TimedOut
+        or SocketError.HostNotFound
+        or SocketError.TryAgain
+        or SocketError.NetworkUnreachable
+        or SocketError.HostUnreachable
+        or SocketError.ConnectionReset
+        or SocketError.ConnectionAborted
+        or SocketError.ConnectionRefused;
 }
