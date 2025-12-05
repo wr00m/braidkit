@@ -24,7 +24,15 @@ internal class Player
 
 public record PlayerSummary(PlayerId PlayerId, string Name, PlayerColor Color, uint SpeedrunFrameIndex, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer)
 {
-    public float SpeedrunTimeSeconds => SpeedrunFrameIndex / 60f;
+    public string FormatSpeedrunTime()
+    {
+        const int fps = 60;
+        int totalHundredths = ((int)SpeedrunFrameIndex * 100 + fps / 2) / fps; // Round to nearest
+        int minutes = totalHundredths / (60 * 100);
+        int seconds = (totalHundredths / 100) % 60;
+        int hundredths = totalHundredths % 100;
+        return $"{minutes}:{seconds:D2}.{hundredths:D2}";
+    }
 }
 
 public static class PlayerExtensions

@@ -144,7 +144,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
             // Render speedrun timers when in puzzle screen
             if (_braidGame.InPuzzleAssemblyScreen)
-                text = $"{text} ({player.SpeedrunTimeSeconds:0.00})";
+                text = $"{text} ({player.FormatSpeedrunTime()})";
 
             _textRenderer.RenderText(
                 text,

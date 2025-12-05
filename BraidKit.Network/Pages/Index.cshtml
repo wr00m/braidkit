@@ -69,7 +69,7 @@
                         <td class="player-name" style="color: @player.Color.ToHex();">@player.Name</td>
                         <td>@player.EntitySnapshot.World-@player.EntitySnapshot.Level</td>
                         <td>@player.PuzzlePieces</td>
-                        <td>@player.SpeedrunTimeSeconds.ToString("0.00") s</td>
+                        <td>@player.FormatSpeedrunTime()</td>
                     </tr>
                 }
             </tbody>
