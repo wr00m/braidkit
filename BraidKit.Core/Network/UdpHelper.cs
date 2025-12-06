@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace BraidKit.Network;
+namespace BraidKit.Core.Network;
 
 public sealed class UdpHelper : IDisposable
 {

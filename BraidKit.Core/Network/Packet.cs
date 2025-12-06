@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace BraidKit.Network;
+namespace BraidKit.Core.Network;
 
 internal enum PacketType : byte
 {

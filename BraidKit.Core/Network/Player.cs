@@ -2,7 +2,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace BraidKit.Network;
+namespace BraidKit.Core.Network;
 
 internal class Player
 {

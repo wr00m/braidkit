@@ -1,4 +1,6 @@
-﻿namespace BraidKit.Network;
+﻿using BraidKit.Core.Network;
+
+namespace BraidKit.ServerApp;
 
 public static class WebDashboard
 {

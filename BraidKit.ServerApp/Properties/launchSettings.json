@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "BraidKit.Network": {
+    "BraidKit.ServerApp": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

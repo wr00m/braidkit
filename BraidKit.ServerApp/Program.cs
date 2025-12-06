@@ -1,7 +1,8 @@
-﻿using System.CommandLine;
+﻿using BraidKit.Core.Network;
+using System.CommandLine;
 using System.Globalization;
 
-namespace BraidKit.Network;
+namespace BraidKit.ServerApp;
 
 /// <summary>Use this to host server on Linux, since BraidKit.exe is Windows only</summary>
 internal static class Program

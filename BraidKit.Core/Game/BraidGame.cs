@@ -1,5 +1,5 @@
 ﻿using BraidKit.Core.MemoryAccess;
-using BraidKit.Network;
+using BraidKit.Core.Network;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;

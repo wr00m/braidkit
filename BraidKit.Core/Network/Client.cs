@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
 
-namespace BraidKit.Network;
+namespace BraidKit.Core.Network;
 
 public sealed class Client : IDisposable
 {

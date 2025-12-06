@@ -1,6 +1,7 @@
+using BraidKit.Core.Network;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace BraidKit.Network.Pages;
+namespace BraidKit.ServerApp.Pages;
 
 public class IndexModel(Server server) : PageModel
 {

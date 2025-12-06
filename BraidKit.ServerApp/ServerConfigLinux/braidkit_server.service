@@ -11,7 +11,7 @@ After=network.target
 Type=simple
 User=<username>
 WorkingDirectory=/home/<username>/braidkit
-ExecStart=/usr/bin/dotnet /home/<username>/braidkit/BraidKit.Network.dll
+ExecStart=/usr/bin/dotnet /home/<username>/braidkit/BraidKit.ServerApp.dll
 Restart=always
 RestartSec=10
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false

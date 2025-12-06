@@ -2,7 +2,7 @@
 using System.Drawing;
 using System.Net;
 
-namespace BraidKit.Network;
+namespace BraidKit.Core.Network;
 
 public sealed class Server : IDisposable
 {

@@ -1,8 +1,8 @@
 ﻿using BraidKit.Core;
 using BraidKit.Core.Game;
+using BraidKit.Core.Network;
 using BraidKit.Inject.Hooks;
 using BraidKit.Inject.Rendering;
-using BraidKit.Network;
 using InjectDotnet.NativeHelper.Native;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
