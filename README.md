@@ -28,7 +28,12 @@ braidkit il-timer --reset-pieces             // Additionally reset all puzzle pi
 braidkit reset-pieces                        // Resets all puzzle pieces on current save
 braidkit debug-info                          // Toggle in-game debug info
 braidkit render-overlay                      // Render in-game debug overlay, e.g., colliders
+braidkit watch-value timspeedx               // Monitor Tim's speed
+braidkit server-host                         // Host a multiplayer server
+braidkit server-join -a <hostname or ip>     // Join a multiplayer server
+braidkit server-disconnect                   // Disconnect from current server
 braidkit -h                                  // Show help
+braidkit <command> -h                        // Show help for specific command
 ```
 
 ![Screenshot](braidkit_screenshot.jpg)
