@@ -59,6 +59,7 @@
                     <th>Level</th>
                     <th>Pieces</th>
                     <th>Timer</th>
+                    <th>Ping</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,12 +71,14 @@
                         <td>@player.EntitySnapshot.World-@player.EntitySnapshot.Level</td>
                         <td>@player.PuzzlePieces</td>
                         <td>@player.FormatSpeedrunTime()</td>
+                        <td>@player.Ping</td>
                     </tr>
                 }
             </tbody>
         </table>
         <div class="footer">
             <div>API version @ApiVersion.Current</div>
+            <div>Port @Model.Port</div>
             <a href="https://github.com/wr00m/braidkit" target="_blank" rel="noopener noreferrer">BraidKit on GitHub</a>
         </div>
     </div>

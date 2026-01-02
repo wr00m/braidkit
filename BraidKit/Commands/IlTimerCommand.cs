@@ -1,7 +1,6 @@
 ﻿using BraidKit.Core.Game;
 using BraidKit.Core.Helpers;
 using System.CommandLine;
-using System.Runtime.InteropServices;
 
 namespace BraidKit.Commands;
 
@@ -143,35 +142,4 @@ internal class IlTimer
 
         return true;
     }
-}
-
-/// <summary>
-/// Increases system timer resolution, allowing Thread.Sleep() and timers to be more accurate. Use with care.
-/// </summary>
-internal class HighPrecisionTimer : IDisposable
-{
-    private readonly uint _resolutionMs;
-    private bool _disposed = false;
-
-    public HighPrecisionTimer(uint resolutionMs = 1)
-    {
-        _resolutionMs = resolutionMs;
-        _ = timeBeginPeriod(_resolutionMs);
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-        _ = timeEndPeriod(_resolutionMs);
-        GC.SuppressFinalize(this);
-    }
-
-    // Finalizer, in case someone forgets to call Dispose()
-    ~HighPrecisionTimer() => Dispose();
-
-    [DllImport("winmm.dll")] private static extern uint timeBeginPeriod(uint uMilliseconds);
-    [DllImport("winmm.dll")] private static extern uint timeEndPeriod(uint uMilliseconds);
 }

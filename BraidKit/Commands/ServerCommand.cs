@@ -19,7 +19,7 @@ internal static partial class Commands
         {
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
         }
-        .SetBraidGameAction(parseResult =>
+        .SetBraidGameAction(async parseResult =>
         {
             var port = parseResult.GetRequiredValue<int>("--port");
 
@@ -27,8 +27,7 @@ internal static partial class Commands
             using var _ = new ConsoleCancelAction(() => cancellationTokenSource.Cancel());
 
             using var server = new Server(port);
-
-            WaitHandle.WaitAny([cancellationTokenSource.Token.WaitHandle]);
+            await server.MainLoop(cancellationTokenSource.Token);
         });
 
     private static Command ServerJoinCommand =>
@@ -86,18 +85,13 @@ internal static partial class Commands
             var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
             var latency = parseResult.GetRequiredValue<int>("--latency");
 
-            var serverIP = await UdpHelper.ResolveIPAddress(serverAddress);
-            if (serverIP is null)
-            {
-                ConsoleHelper.WriteError($"Invalid server IP address or hostname: {serverAddress}");
-                return;
-            }
-
             using var cancellationTokenSource = new CancellationTokenSource();
             using var __ = new ConsoleCancelAction(() => cancellationTokenSource.Cancel());
 
-            using var client = new Client(serverIP, serverPort);
-            var connected = await client.ConnectToServer(playerName, playerColor, cancellationTokenSource.Token);
+            using var client = new Client();
+            client.SimulateLatency(latency);
+
+            var connected = await client.ConnectToServer(serverAddress, serverPort, playerName, playerColor, cancellationTokenSource.Token);
 
             if (!connected)
             {
@@ -109,19 +103,15 @@ internal static partial class Commands
             const double fps = 60.0;
             var random = new Random();
 
-            while (!cancellationTokenSource.IsCancellationRequested)
+            while (client.IsConnected && !cancellationTokenSource.IsCancellationRequested)
             {
+                client.PollEvents();
+
                 var frameIndex = (int)Math.Floor(stopwatch.Elapsed.TotalSeconds * fps);
                 var snapshot = _testAnimation[frameIndex % _testAnimation.Count] with { FrameIndex = frameIndex };
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(random.Next(latency));
-                    client.SendPlayerStateUpdate((uint)snapshot.FrameIndex, 17, snapshot);
-                });
-                await Task.Delay(10);
+                client.SendPlayerStateUpdate((uint)snapshot.FrameIndex, 17, snapshot);
+                await Task.Delay(15);
             }
-
-            WaitHandle.WaitAny([cancellationTokenSource.Token.WaitHandle]);
         });
 
     private static readonly ImmutableList<EntitySnapshot> _testAnimation = [

@@ -1,64 +1,122 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Net;
+﻿using LiteNetLib;
+using LiteNetLib.Utils;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BraidKit.Core.Network;
 
 public sealed class Client : IDisposable
 {
-    private readonly UdpHelper _udpHelper;
-    private readonly IPEndPoint _serverEndpoint;
-    private readonly Dictionary<PlayerId, Player> _otherPlayers = [];
+    private readonly NetManager _netManager;
+    private NetPeer? _connectedServer;
     private Player? OwnPlayer { get; set; }
+    private readonly Dictionary<PlayerId, Player> _otherPlayers = [];
+    private int lastPollPacketCount = 0;
 
-    [MemberNotNullWhen(true, nameof(OwnPlayer))]
-    public bool IsConnected => OwnPlayer?.IsConnected == true;
+    /// <summary>True when connection to server has been established</summary>
+    [MemberNotNullWhen(true, nameof(_connectedServer))]
+    public bool IsConnected => _connectedServer is not null;
 
-    public Client(IPAddress serverIP, int serverPort)
+    /// <summary>True when server has responded</summary>
+    [MemberNotNullWhen(true, nameof(_connectedServer), nameof(OwnPlayer))]
+    public bool IsGameInitialized => IsConnected && OwnPlayer is not null;
+
+    public Client()
     {
-        _udpHelper = new(0, OnPacketReceived); // Port is chosen by OS
-        _serverEndpoint = new(serverIP, serverPort);
-        Console.WriteLine($"Client connecting to server {serverIP}:{serverPort}");
+        var listener = new EventBasedNetListener();
+        _netManager = new(listener); // Port is chosen by OS
+        _netManager.Start();
+
+        listener.PeerConnectedEvent += peer =>
+        {
+            _connectedServer = peer;
+            Console.WriteLine("Client connected to server");
+        };
+
+        listener.PeerDisconnectedEvent += (peer, info) =>
+        {
+            _connectedServer = null;
+            OwnPlayer = null;
+            Console.WriteLine("Client disconnected from server");
+
+            if (info.Reason is DisconnectReason.ConnectionRejected && info.AdditionalData.AvailableBytes > 0)
+            {
+                string reason = info.AdditionalData.GetString();
+                Console.WriteLine($"Disconnect reason: {reason}");
+            }
+
+            // TODO: Reconnect to server automatically after timeout
+            //if (info.Reason is DisconnectReason.ConnectionFailed or DisconnectReason.Timeout)
+            //    ReconnectToServer();
+        };
+
+        listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod, channel) =>
+        {
+            lastPollPacketCount++;
+            OnPacketReceived(dataReader.GetRemainingBytes(), fromPeer);
+            dataReader.Recycle();
+        };
     }
 
     public void Dispose()
     {
-        _udpHelper.Dispose();
+        _netManager.Stop();
         Console.WriteLine("Client stopped");
+    }
+
+    /// <summary>Client doesn't have a "main loop" since we want to poll events at specific times to get predictable behavior</summary>
+    public int PollEvents()
+    {
+        lastPollPacketCount = 0;
+        _netManager.PollEvents();
+
+        // Remove stale players
+        var stalePlayerIds = _otherPlayers.Values.Where(x => x.Stale).Select(x => x.PlayerId).ToList();
+        stalePlayerIds.ForEach(x => _otherPlayers.Remove(x));
+
+        return lastPollPacketCount;
     }
 
     public List<PlayerSummary> GetPlayers()
     {
         var result = _otherPlayers.Values.Select(x => x.ToSummary()).ToList();
         if (OwnPlayer != null)
-            result.Add(OwnPlayer.ToSummary(true));
+            result.Add(OwnPlayer.ToSummary(isOwnPlayer: true));
         return result;
     }
 
-    public async Task<bool> ConnectToServer(string playerName = "", PlayerColor playerColor = default, CancellationToken ct = default)
+    public async Task<bool> ConnectToServer(string serverHostnameOrIpAddress, int serverPort, string playerName = "", PlayerColor playerColor = default, CancellationToken ct = default)
     {
+        if (IsConnected)
+            return true;
+
+        Console.WriteLine($"Connecting to server {serverHostnameOrIpAddress}:{serverPort}");
+
+        var packet = new PlayerJoinRequestPacket(playerName, playerColor);
+        var bytes = UdpHelper.StructToBytes(packet);
+        var writer = new NetDataWriter();
+        writer.Put(bytes);
+
         const int maxAttempts = 10;
         for (int i = 0; i < maxAttempts && !IsConnected && !ct.IsCancellationRequested; i++)
         {
-            Console.WriteLine("Connecting to server...");
-            SendPlayerJoinRequest(playerName, playerColor);
-            await Task.Delay(1000, ct);
+            if (i > 0)
+                Console.WriteLine($"Retrying (attempt {i + 1} of {maxAttempts})...");
+
+            _netManager.Connect(serverHostnameOrIpAddress, serverPort, writer);
+
+            for (int j = 0; j < 20 && !IsConnected && !ct.IsCancellationRequested; j++)
+            {
+                await Task.Delay(50, ct);
+                PollEvents();
+            }
         }
 
         return IsConnected;
     }
 
-    private void SendPlayerJoinRequest(string playerName, PlayerColor playerColor)
-    {
-        if (IsConnected)
-            return;
-
-        var packet = new PlayerJoinRequestPacket(playerName, playerColor);
-        _udpHelper.SendPacket(packet, _serverEndpoint);
-    }
-
     public void SendPlayerStateUpdate(uint speedrunFrameIndex, int puzzlePieces, EntitySnapshot entitySnapshot)
     {
-        if (!IsConnected)
+        if (!IsGameInitialized)
             return;
 
         // Ignore already sent frame index
@@ -70,24 +128,34 @@ public sealed class Client : IDisposable
         OwnPlayer.EntitySnapshot = entitySnapshot;
         OwnPlayer.Updated = DateTime.Now;
 
-        var packet = new PlayerStateUpdatePacket(OwnPlayer.PlayerId, OwnPlayer.AccessToken, OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot);
-        _udpHelper.SendPacket(packet, _serverEndpoint);
+        var packet = new PlayerStateUpdatePacket(OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot);
+        var bytes = UdpHelper.StructToBytes(packet);
+        var writer = new NetDataWriter();
+        writer.Put(bytes);
 
-        // Remove stale players (there's probably a more suitable place to do this)
-        var stalePlayerIds = _otherPlayers.Values.Where(x => x.Stale).Select(x => x.PlayerId).ToList();
-        stalePlayerIds.ForEach(x => _otherPlayers.Remove(x));
+        _connectedServer.Send(bytes, DeliveryMethod.Unreliable);
+        _netManager.TriggerUpdate(); // Flush packet immediately
     }
 
     /// <summary>Updates current player state with new frame index (used to send keep-alive packet when game is paused)</summary>
     public void SendPlayerStateUpdate(int frameIndex)
     {
-        if (!IsConnected)
+        if (!IsGameInitialized)
             return;
 
         SendPlayerStateUpdate(OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot with { FrameIndex = frameIndex });
     }
 
-    private void OnPacketReceived(byte[] data, IPEndPoint sender)
+    public void SimulateLatency(int maxLatency)
+    {
+        _netManager.SimulateLatency = maxLatency > 0;
+        _netManager.SimulationMinLatency = maxLatency / 2;
+        _netManager.SimulationMaxLatency = maxLatency;
+        _netManager.SimulatePacketLoss = maxLatency > 0;
+        _netManager.SimulationPacketLossChance = maxLatency > 0 ? 10 : 0;
+    }
+
+    private void OnPacketReceived(byte[] data, NetPeer sender)
     {
         if (data.Length == 0)
             return;
@@ -97,7 +165,7 @@ public sealed class Client : IDisposable
         {
             case PacketType.PlayerJoinResponse:
                 if (PacketParser.TryParse<PlayerJoinResponsePacket>(data, out var playerJoinResponsePacket))
-                    HandlePlayerJoinResponse(playerJoinResponsePacket);
+                    HandlePlayerJoinResponse(playerJoinResponsePacket, sender);
                 break;
             case PacketType.PlayerStateBroadcast:
                 if (PacketParser.TryParse<PlayerStateBroadcastPacket>(data, out var playerStateBroadcastPacket))
@@ -109,7 +177,7 @@ public sealed class Client : IDisposable
         }
     }
 
-    private void HandlePlayerJoinResponse(PlayerJoinResponsePacket packet)
+    private void HandlePlayerJoinResponse(PlayerJoinResponsePacket packet, NetPeer sender)
     {
         if (!packet.Accepted)
         {
@@ -119,10 +187,11 @@ public sealed class Client : IDisposable
             return;
         }
 
+        _connectedServer = sender;
+
         OwnPlayer = new()
         {
             PlayerId = packet.PlayerId,
-            AccessToken = packet.AccessToken,
             Name = packet.PlayerName,
             Color = packet.PlayerColor,
             SpeedrunFrameIndex = default,
@@ -157,7 +226,6 @@ public sealed class Client : IDisposable
             player = new Player
             {
                 PlayerId = packet.PlayerId,
-                AccessToken = default,
                 Name = packet.PlayerName,
                 Color = packet.PlayerColor,
                 SpeedrunFrameIndex = packet.SpeedrunFrameIndex,

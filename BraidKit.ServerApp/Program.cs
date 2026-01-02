@@ -24,9 +24,14 @@ internal static class Program
             var webPort = parseResult.GetRequiredValue<int>("--web-port");
 
             using var server = new Server(port);
-            Console.WriteLine($"Server is running on port {port}");
 
-            await WebDashboard.RunWebDashboard(server, webPort);
+            Console.WriteLine($"Game server is running on port {port}");
+            Console.WriteLine($"Web server is running on port {webPort}");
+
+            await Task.WhenAll([
+                server.MainLoop(CancellationToken.None),
+                WebDashboard.RunWebDashboard(server, webPort),
+            ]);
         });
 
         var parseResult = serverCommand.Parse(args);

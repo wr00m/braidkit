@@ -62,6 +62,9 @@ internal static class Bootstrapper
                 // Note: Checking which entity manager is active (hopefully) prevents random Tim clones that otherwise appear on screen sometimes
                 if (IsConnected && _braidGame.IsUsualEntityManagerActive())
                 {
+                    // Poll for updated positions before rendering other players
+                    _multiplayerClient.PollEvents();
+
                     var playersToRender = _multiplayerClient
                         .GetPlayers()
                         .Where(x => !x.IsOwnPlayer && x.EntitySnapshot.World == _braidGame.TimWorld && x.EntitySnapshot.Level == _braidGame.TimLevel)
@@ -122,19 +125,8 @@ internal static class Bootstrapper
             var serverAddress = Marshal.PtrToStringUni(args.ServerAddress)!;
             NativeMethods.VirtualFree(args.ServerAddress, 0, FreeType.Release);
 
-            var connected = Task.Run(async () =>
-            {
-                var serverIP = await UdpHelper.ResolveIPAddress(serverAddress);
-                if (serverIP is null)
-                {
-                    Logger.Log($"Invalid server IP address or hostname: {serverAddress}");
-                    return false;
-                }
-
-                // TODO: Get player name from Steam?
-                _multiplayerClient = new(serverIP, args.ServerPort);
-                return await _multiplayerClient.ConnectToServer(args.PlayerName, args.PlayerColor);
-            }).GetAwaiter().GetResult();
+            _multiplayerClient = new();
+            var connected = _multiplayerClient.ConnectToServer(serverAddress, args.ServerPort, args.PlayerName, args.PlayerColor).GetAwaiter().GetResult();
 
             return connected ? 1 : 0;
         }

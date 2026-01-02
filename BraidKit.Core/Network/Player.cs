@@ -7,7 +7,6 @@ namespace BraidKit.Core.Network;
 internal class Player
 {
     public required PlayerId PlayerId { get; init; }
-    public required int AccessToken { get; init; }
     public required string Name { get; set; }
     public required PlayerColor Color { get; set; }
     public required uint SpeedrunFrameIndex { get; set; } // Frame count since start of speedrun (if speedrun mode is active)
@@ -19,10 +18,10 @@ internal class Player
     public TimeSpan TimeSinceLastUpdate => DateTime.Now - Updated;
     public bool Stale => TimeSinceLastUpdate > TimeSpan.FromSeconds(2);
     public bool TimedOut => TimeSinceLastUpdate > TimeSpan.FromSeconds(30);
-    public PlayerSummary ToSummary(bool isOwnPlayer = false) => new(PlayerId, Name, Color, SpeedrunFrameIndex, PuzzlePieces, EntitySnapshot, isOwnPlayer);
+    public PlayerSummary ToSummary(bool isOwnPlayer = false, int ping = 0) => new(PlayerId, Name, Color, SpeedrunFrameIndex, PuzzlePieces, EntitySnapshot, isOwnPlayer, ping);
 }
 
-public record PlayerSummary(PlayerId PlayerId, string Name, PlayerColor Color, uint SpeedrunFrameIndex, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer)
+public record PlayerSummary(PlayerId PlayerId, string Name, PlayerColor Color, uint SpeedrunFrameIndex, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer, int Ping)
 {
     public string FormatSpeedrunTime()
     {

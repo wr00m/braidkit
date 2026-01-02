@@ -11,6 +11,10 @@ internal enum PacketType : byte
     PlayerJoinResponse,
     PlayerStateUpdate,
     PlayerStateBroadcast,
+    PlayerSpeedrunStarted,
+    PlayerSpeedrunStartedBroadcast,
+    PlayerChatMessage,
+    PlayerChatMessageBroadcast,
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -23,24 +27,20 @@ internal unsafe readonly struct PlayerJoinRequestPacket(FixedLengthAsciiString p
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerJoinResponsePacket(PlayerId playerId, FixedLengthAsciiString playerName, int accessToken = default, PlayerColor playerColor = default)
+internal unsafe readonly struct PlayerJoinResponsePacket(PlayerId playerId, FixedLengthAsciiString playerName, PlayerColor playerColor)
 {
     public readonly PacketType PacketType = PacketType.PlayerJoinResponse;
     public readonly byte ApiVersion = Network.ApiVersion.Current;
     public readonly PlayerId PlayerId = playerId;
-    public readonly int AccessToken = accessToken;
     public readonly PlayerColor PlayerColor = playerColor;
     public readonly FixedLengthAsciiString PlayerName = playerName;
-    public bool Accepted => PlayerId != PlayerId.Unknown && AccessToken != default;
-    public static PlayerJoinResponsePacket Failed => new(PlayerId.Unknown, "");
+    public bool Accepted => PlayerId != PlayerId.Unknown;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerStateUpdatePacket(PlayerId playerId, int accessToken, uint speedrunFrameIndex, byte puzzlePieces, EntitySnapshot entitySnapshot)
+internal unsafe readonly struct PlayerStateUpdatePacket(uint speedrunFrameIndex, byte puzzlePieces, EntitySnapshot entitySnapshot)
 {
     public readonly PacketType PacketType = PacketType.PlayerStateUpdate;
-    public readonly PlayerId PlayerId = playerId;
-    public readonly int AccessToken = accessToken;
     public readonly uint SpeedrunFrameIndex = speedrunFrameIndex;
     public readonly byte PuzzlePieces = puzzlePieces;
     public readonly EntitySnapshot EntitySnapshot = entitySnapshot;
@@ -56,6 +56,33 @@ internal unsafe readonly struct PlayerStateBroadcastPacket(PlayerId playerId, Fi
     public readonly uint SpeedrunFrameIndex = speedrunFrameIndex;
     public readonly byte PuzzlePieces = puzzlePieces;
     public readonly EntitySnapshot EntitySnapshot = entitySnapshot;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+internal unsafe readonly struct PlayerSpeedrunStartedPacket()
+{
+    public readonly PacketType PacketType = PacketType.PlayerSpeedrunStarted;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+internal unsafe readonly struct PlayerSpeedrunStartedBroadcastPacket()
+{
+    public readonly PacketType PacketType = PacketType.PlayerSpeedrunStartedBroadcast;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+internal unsafe readonly struct PlayerChatMessagePacket(string message)
+{
+    public readonly PacketType PacketType = PacketType.PlayerChatMessage;
+    public readonly string Message = message.Trim();
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+internal unsafe readonly struct PlayerChatMessageBroadcastPacket(PlayerId playerId, string message)
+{
+    public readonly PacketType PacketType = PacketType.PlayerChatMessageBroadcast;
+    public readonly PlayerId PlayerId = playerId;
+    public readonly string Message = message.Trim();
 }
 
 internal static class PacketParser

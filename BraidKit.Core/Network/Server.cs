@@ -1,28 +1,116 @@
-﻿using System.Collections.Immutable;
+﻿using BraidKit.Core.Helpers;
+using LiteNetLib;
+using LiteNetLib.Utils;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Drawing;
-using System.Net;
 
 namespace BraidKit.Core.Network;
 
 public sealed class Server : IDisposable
 {
-    private readonly UdpHelper _udpHelper;
-    private readonly Dictionary<IPEndPoint, Player> _connectedPlayers = [];
-    public List<PlayerSummary> GetPlayers() => [.. _connectedPlayers.Values.Where(x => !x.TimedOut).Select(x => x.ToSummary())];
+    private readonly NetManager _netManager;
+    private readonly Dictionary<int, Player> _connectedPlayers = []; // Key is NetPeer id
+    public List<PlayerSummary> GetPlayers() => [.. _connectedPlayers.Where(x => !x.Value.TimedOut).Select(x => x.Value.ToSummary(ping: _netManager.GetPeerById(x.Key)!.Ping))];
+    public int Port => _netManager.LocalPort;
 
     public Server(int port)
     {
-        _udpHelper = new(port, OnPacketReceived);
-        Console.WriteLine($"Server started on port {port}. Press Ctrl+C to exit.\n");
+        var listener = new EventBasedNetListener();
+        _netManager = new(listener);
+        _netManager.Start(port);
+
+        listener.ConnectionRequestEvent += request =>
+        {
+            const int clientMaxCount = 100;
+            if (_netManager.ConnectedPeersCount >= clientMaxCount)
+            {
+                request.Reject(); // TODO: "Too many connections"
+                return;
+            }
+
+            if (!PacketParser.TryParse<PlayerJoinRequestPacket>(request.Data.GetRemainingBytes(), out var playerJoinRequestPacket) || playerJoinRequestPacket.PacketType != PacketType.PlayerJoinRequest)
+            {
+                request.Reject(); // TODO: "Invalid join request"
+                return;
+            }
+
+            if (playerJoinRequestPacket.ApiVersion != ApiVersion.Current)
+            {
+                request.Reject(); // TODO: $"API version mismatch (client: {playerJoinRequestPacket.ApiVersion}, server: {ApiVersion.Current})"
+                return;
+            }
+
+            var peer = request.Accept();
+
+            // TODO: What if HandlePlayerJoinRequest returns false?
+            HandlePlayerJoinRequest(playerJoinRequestPacket, peer);
+        };
+
+        listener.PeerConnectedEvent += peer =>
+        {
+            // Send response packet
+            if (_connectedPlayers.TryGetValue(peer.Id, out var player))
+            {
+                var packet = new PlayerJoinResponsePacket(player.PlayerId, player.Name, player.Color);
+                var bytes = UdpHelper.StructToBytes(packet);
+                var writer = new NetDataWriter();
+                writer.Put(bytes);
+
+                peer.Send(writer, DeliveryMethod.ReliableOrdered);
+            }
+        };
+
+        listener.PeerDisconnectedEvent += (peer, info) =>
+        {
+            if (_connectedPlayers.Remove(peer.Id, out var disconnectedPlayer))
+                Console.WriteLine($"Player disconnected: {disconnectedPlayer.Name}");
+        };
+
+        listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod, channel) =>
+        {
+            OnPacketReceived(dataReader.GetRemainingBytes(), fromPeer);
+            dataReader.Recycle();
+        };
+
+        // TODO
+        //Console.WriteLine($"Server started on port {port}. Press Ctrl+C to exit.\n");
     }
 
     public void Dispose()
     {
-        _udpHelper.Dispose();
+        _netManager.Stop();
         Console.WriteLine("Server stopped");
     }
 
-    private void OnPacketReceived(byte[] data, IPEndPoint sender)
+    public async Task MainLoop(CancellationToken ct)
+    {
+        // TODO: We shouldn't need high precision timer here once client implements frame interpolation
+        using var highPrecisionTimer = OperatingSystem.IsWindows() ? new HighPrecisionTimer(5) : null;
+
+        var pingStopwatch = Stopwatch.StartNew();
+
+        while (_netManager.IsRunning && !ct.IsCancellationRequested)
+        {
+            _netManager.PollEvents();
+
+            // Remove timed out players to free up player ids and colors
+            var timedOutPlayerKeys = _connectedPlayers.Where(x => x.Value.TimedOut).Select(x => x.Key).ToList();
+            foreach (var timedOutPlayerKey in timedOutPlayerKeys)
+                if (_connectedPlayers.Remove(timedOutPlayerKey, out var removedPlayer))
+                    Console.WriteLine($"Removed timed out player {removedPlayer.Name}");
+
+            if (pingStopwatch.ElapsedMilliseconds > 5000)
+            {
+                _netManager.SendToAll([], DeliveryMethod.ReliableUnordered);
+                pingStopwatch.Restart();
+            }
+
+            await Task.Delay(_connectedPlayers.Count > 0 ? 5 : 500, ct);
+        }
+    }
+
+    private void OnPacketReceived(byte[] data, NetPeer sender)
     {
         if (data.Length == 0)
             return;
@@ -30,11 +118,6 @@ public sealed class Server : IDisposable
         var packetType = (PacketType)data[0];
         switch (packetType)
         {
-            case PacketType.PlayerJoinRequest:
-                if (PacketParser.TryParse<PlayerJoinRequestPacket>(data, out var playerJoinRequestPacket))
-                    HandlePlayerJoinRequest(playerJoinRequestPacket, sender);
-                // TODO: Maybe respond with PlayerJoinResponsePacket.Failed if parse failed (e.g., wrong packet size due to API version mismatch)
-                break;
             case PacketType.PlayerStateUpdate:
                 if (PacketParser.TryParse<PlayerStateUpdatePacket>(data, out var playerStateUpdatePacket))
                     HandlePlayerStateUpdate(playerStateUpdatePacket, sender);
@@ -45,32 +128,23 @@ public sealed class Server : IDisposable
         }
     }
 
-    private void HandlePlayerJoinRequest(PlayerJoinRequestPacket packet, IPEndPoint sender)
+    private bool HandlePlayerJoinRequest(PlayerJoinRequestPacket packet, NetPeer sender)
     {
         if (packet.ApiVersion != ApiVersion.Current)
-        {
-            _udpHelper.SendPacket(PlayerJoinResponsePacket.Failed, sender);
-            return;
-        }
+            return false;
 
         // Handle race condition when multiple players join at the same time
+        // TODO: We don't actually need this lock if we keep NetManager.UnsyncedEvents set to false 
         lock (_connectedPlayers)
         {
-            // Remove timed out players to free up player ids and colors (there's probably a more suitable place to do this)
-            var timedOutPlayerKeys = _connectedPlayers.Where(x => x.Value.TimedOut).Select(x => x.Key).ToList();
-            foreach (var timedOutPlayerKey in timedOutPlayerKeys)
-                if (_connectedPlayers.Remove(timedOutPlayerKey, out var removedPlayer))
-                    Console.WriteLine($"Removed timed out player {removedPlayer.Name}");
-
             // Add player if not already connected
-            if (!_connectedPlayers.TryGetValue(sender, out var player))
+            if (!_connectedPlayers.TryGetValue(sender.Id, out var player))
             {
                 // Deny join request if unable to get a unique player id
                 if (!TryGetNextUniquePlayerId(out var playerId))
                 {
                     Console.WriteLine("Failed to generate player id");
-                    _udpHelper.SendPacket(PlayerJoinResponsePacket.Failed, sender);
-                    return;
+                    return false;
                 }
 
                 var playerColor = packet.PlayerColor != PlayerColor.Undefined ? packet.PlayerColor : GetPreferablyUniqueColor();
@@ -78,7 +152,6 @@ public sealed class Server : IDisposable
                 player = new()
                 {
                     PlayerId = playerId,
-                    AccessToken = new Random().Next(1, int.MaxValue),
                     Name = !string.IsNullOrWhiteSpace(packet.PlayerName) ? packet.PlayerName : $"{playerColor.KnownColor} Tim",
                     Color = playerColor,
                     SpeedrunFrameIndex = default,
@@ -87,28 +160,19 @@ public sealed class Server : IDisposable
                     Updated = DateTime.Now,
                 };
 
-                _connectedPlayers.Add(sender, player);
+                _connectedPlayers.Add(sender.Id, player);
 
                 Console.WriteLine($"Player joined: {player.Name}");
             }
 
-            // Send response packet (resend if player is already connected)
-            _udpHelper.SendPacket(new PlayerJoinResponsePacket(player.PlayerId, player.Name, player.AccessToken, player.Color), sender);
+            return true;
         }
     }
 
-    private void HandlePlayerStateUpdate(PlayerStateUpdatePacket packet, IPEndPoint sender)
+    private void HandlePlayerStateUpdate(PlayerStateUpdatePacket packet, NetPeer sender)
     {
         // Ignore packet if sender isn't connected
-        if (!_connectedPlayers.TryGetValue(sender, out var player))
-            return;
-
-        // Ignore packet if wrong player id
-        if (packet.PlayerId != player.PlayerId)
-            return;
-
-        // Ignore packet if wrong access token (prevent spoofing and ignore stale connections)
-        if (packet.AccessToken != player.AccessToken)
+        if (!_connectedPlayers.TryGetValue(sender.Id, out var player))
             return;
 
         // Ignore packet if stale
@@ -121,12 +185,18 @@ public sealed class Server : IDisposable
         player.Updated = DateTime.Now;
 
         // Broadcast update to all other clients
-        var otherPlayers = _connectedPlayers.Keys.Except([sender]).ToList();
+        var otherPlayers = _connectedPlayers.Keys.Except([sender.Id]).Select(x => _netManager.GetPeerById(x)!).ToList();
         if (otherPlayers.Count > 0)
         {
             var broadcastPacket = new PlayerStateBroadcastPacket(player.PlayerId, player.Name, player.Color, player.SpeedrunFrameIndex, player.PuzzlePieces, player.EntitySnapshot);
+            var broadcastBytes = UdpHelper.StructToBytes(broadcastPacket);
+            var broadcastWriter = new NetDataWriter();
+            broadcastWriter.Put(broadcastBytes);
+
             foreach (var otherPlayer in otherPlayers)
-                _udpHelper.SendPacket(broadcastPacket, otherPlayer);
+                otherPlayer.Send(broadcastWriter, DeliveryMethod.Unreliable);
+
+            _netManager.TriggerUpdate(); // Flush packets immediately
         }
     }
 
