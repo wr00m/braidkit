@@ -88,7 +88,8 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
 
             foreach (var @char in line)
             {
-                if (!_font.Characters.TryGetValue(@char, out var c))
+                const char replacementChar = '�';
+                if (!_font.Characters.TryGetValue(@char, out var c) && !_font.Characters.TryGetValue(replacementChar, out c))
                     continue;
 
                 var x0 = x - c.OriginX;

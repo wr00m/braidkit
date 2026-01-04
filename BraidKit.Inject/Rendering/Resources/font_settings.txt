@@ -1,0 +1,15 @@
+https://github.com/evanw/font-texture-generator
+
+Characters (ASCII + Latin-1 Supplement + replacement char, 0x20–0x7e + 0xa0–0xff + 0xfffd):
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ�
+
+Background color:
+rgba(0,0,0,0)
+
+Stroke color:
+#000
+
+Stroke thickness:
+2
+
+Default values for other settings

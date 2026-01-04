@@ -1,6 +1,7 @@
 ﻿using BraidKit.Core;
 using BraidKit.Core.Game;
 using BraidKit.Core.Network;
+using System.Drawing;
 using System.Numerics;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
@@ -155,6 +156,28 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 RenderSettings.FontSize,
                 new(player.Color.ToRgba()));
         }
+    }
+
+    public void RenderChat(string chatInput, PlayerColor? color = null)
+    {
+        if (_braidGame.InMainMenu)
+            return;
+
+        GetMatrices(out var _, out var screenMtx, out var worldToScreenMtx);
+
+        _textRenderer.Activate();
+        _textRenderer.SetViewProjectionMatrix(screenMtx);
+
+        const float margin = 10f;
+
+        _textRenderer.RenderText(
+            $"Chat: {chatInput}",
+            margin,
+            _braidGame.ScreenHeight * .8f,
+            HAlign.Left,
+            VAlign.Top,
+            RenderSettings.FontSize,
+            new((color ?? KnownColor.White).ToRgba()));
     }
 
     private void GetMatrices(out Matrix4x4 viewProjMtx, out Matrix4x4 screenMtx, out Matrix4x4 worldToScreenMtx)

@@ -21,6 +21,7 @@ internal static class Bootstrapper
     private static readonly EndSceneHook _endSceneHook;
     private static readonly GetGuyAnimationIndexAndDurationHook _getGuyAnimationIndexAndDurationHook;
     private static readonly StopRenderingEntitiesHook _stopRenderingEntitiesHook;
+    private static readonly ChatInput _chatInput = new();
     private static Client? _multiplayerClient;
 
     [MemberNotNullWhen(true, nameof(_multiplayerClient))]
@@ -44,6 +45,18 @@ internal static class Bootstrapper
                 {
                     _multiplayerClient.SendPlayerStateUpdate(_braidGame.FrameCount);
                     _gameRenderer.RenderPlayerLabelsAndLeaderboard(_multiplayerClient.GetPlayers());
+
+
+                    if (!_braidGame.InMainMenu)
+                    {
+                        if (_chatInput.Update(out var message))
+                        {
+                            // TODO: Send message to server
+                        }
+
+                        if (_chatInput.IsActive)
+                            _gameRenderer.RenderChat(_chatInput.Message);
+                    }
                 }
             });
             _getGuyAnimationIndexAndDurationHook = new((entityAddr, animationIndex, animationTime) =>
