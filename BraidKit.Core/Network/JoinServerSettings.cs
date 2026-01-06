@@ -5,16 +5,16 @@ namespace BraidKit.Core.Network;
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct JoinServerSettings()
 {
-    public required nint ServerAddress;
+    public required IntPtr ServerAddress;
     public required int ServerPort;
-    public required FixedLengthAsciiString PlayerName;
+    public required IntPtr PlayerName;
     public required PlayerColor PlayerColor;
 
     public static JoinServerSettings Disconnect => new()
     {
-        ServerAddress = nint.Zero,
+        ServerAddress = IntPtr.Zero,
         ServerPort = default,
-        PlayerName = default,
+        PlayerName = IntPtr.Zero,
         PlayerColor = default,
     };
 }

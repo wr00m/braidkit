@@ -1,12 +1,11 @@
 ﻿using BraidKit.Core.Helpers;
+using BraidKit.Core.Network;
 using System.Diagnostics.CodeAnalysis;
-using System.Windows.Forms;
 
 namespace BraidKit.Inject;
 
 internal class ChatInput
 {
-    private const int MessageMaxLength = 100;
     private readonly KeyboardState _keyboardState = new();
     public string? Message { get; private set; }
     [MemberNotNullWhen(true, nameof(Message))] public bool IsActive => Message is not null;
@@ -21,11 +20,10 @@ internal class ChatInput
         {
             if (IsActive)
             {
-                completedMessage = Message; // TODO: Maybe trim here?
+                completedMessage = !string.IsNullOrWhiteSpace(Message) ? Message : null;
                 Message = null;
-                return true; // TODO: Return false if empty string?
+                return completedMessage is not null;
             }
-
 
             Message = ""; // Activate typing
             completedMessage = null;
@@ -47,9 +45,8 @@ internal class ChatInput
             return false;
         }
 
-        // TODO: Prevent certain keys (limit to chars available in font)?
         if (_keyboardState.TryGetTypedChars(out var chars))
-            Message = (Message + chars).Truncate(MessageMaxLength);
+            Message = (Message + chars).Truncate(PacketConstants.ChatMessageMaxLength);
 
         completedMessage = null;
         return false;

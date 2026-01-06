@@ -2,5 +2,5 @@
 
 public static class ApiVersion
 {
-    public const byte Current = 1;
+    public const byte Current = 2;
 }

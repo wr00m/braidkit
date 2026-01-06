@@ -1,7 +1,7 @@
-﻿using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿using LiteNetLib.Utils;
+using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
+using System.Numerics;
 
 namespace BraidKit.Core.Network;
 
@@ -11,129 +11,271 @@ internal enum PacketType : byte
     PlayerJoinResponse,
     PlayerStateUpdate,
     PlayerStateBroadcast,
-    PlayerSpeedrunStarted,
-    PlayerSpeedrunStartedBroadcast,
     PlayerChatMessage,
     PlayerChatMessageBroadcast,
+    StartSpeedrunBroadcast,
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerJoinRequestPacket(FixedLengthAsciiString playerName, PlayerColor playerColor = default)
+internal interface IPacket
 {
-    public readonly PacketType PacketType = PacketType.PlayerJoinRequest;
-    public readonly byte ApiVersion = Network.ApiVersion.Current;
-    public readonly FixedLengthAsciiString PlayerName = playerName;
-    public readonly PlayerColor PlayerColor = playerColor;
+    PacketType PacketType { get; }
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerJoinResponsePacket(PlayerId playerId, FixedLengthAsciiString playerName, PlayerColor playerColor)
+internal interface IPacketable<T> where T : IPacketable<T>
 {
-    public readonly PacketType PacketType = PacketType.PlayerJoinResponse;
-    public readonly byte ApiVersion = Network.ApiVersion.Current;
-    public readonly PlayerId PlayerId = playerId;
-    public readonly PlayerColor PlayerColor = playerColor;
-    public readonly FixedLengthAsciiString PlayerName = playerName;
-    public bool Accepted => PlayerId != PlayerId.Unknown;
+    void Serialize(NetDataWriter writer);
+    static abstract T Deserialize(NetDataReader reader);
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerStateUpdatePacket(uint speedrunFrameIndex, byte puzzlePieces, EntitySnapshot entitySnapshot)
+public static class PacketConstants
 {
-    public readonly PacketType PacketType = PacketType.PlayerStateUpdate;
-    public readonly uint SpeedrunFrameIndex = speedrunFrameIndex;
-    public readonly byte PuzzlePieces = puzzlePieces;
-    public readonly EntitySnapshot EntitySnapshot = entitySnapshot;
+    public const int PlayerNameMaxLength = 25;
+    public const int ChatMessageMaxLength = 100;
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerStateBroadcastPacket(PlayerId playerId, FixedLengthAsciiString playerName, PlayerColor playerColor, uint speedrunFrameIndex, byte puzzlePieces, EntitySnapshot entitySnapshot)
+internal record PlayerJoinRequestPacket(string PlayerName, PlayerColor PlayerColor, byte ApiVersion = ApiVersion.Current)
+    : IPacket, IPacketable<PlayerJoinRequestPacket>
 {
-    public readonly PacketType PacketType = PacketType.PlayerStateBroadcast;
-    public readonly PlayerId PlayerId = playerId;
-    public readonly PlayerColor PlayerColor = playerColor;
-    public readonly FixedLengthAsciiString PlayerName = playerName;
-    public readonly uint SpeedrunFrameIndex = speedrunFrameIndex;
-    public readonly byte PuzzlePieces = puzzlePieces;
-    public readonly EntitySnapshot EntitySnapshot = entitySnapshot;
+    public PacketType PacketType => PacketType.PlayerJoinRequest;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(ApiVersion);
+        writer.Put(PlayerName, PacketConstants.PlayerNameMaxLength);
+        writer.Put(PlayerColor);
+    }
+
+    public static PlayerJoinRequestPacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.PlayerJoinRequest))
+            return default!;
+
+        return new(
+            ApiVersion: reader.GetByte(),
+            PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
+            PlayerColor: reader.GetByte());
+    }
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerSpeedrunStartedPacket()
+internal record PlayerJoinResponsePacket(PlayerId PlayerId, string PlayerName, PlayerColor PlayerColor)
+    : IPacket, IPacketable<PlayerJoinResponsePacket>
 {
-    public readonly PacketType PacketType = PacketType.PlayerSpeedrunStarted;
+    public PacketType PacketType => PacketType.PlayerJoinResponse;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(PlayerId);
+        writer.Put(PlayerName, PacketConstants.PlayerNameMaxLength);
+        writer.Put(PlayerColor);
+    }
+
+    public static PlayerJoinResponsePacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.PlayerJoinResponse))
+            return default!;
+
+        return new(
+            PlayerId: reader.GetByte(),
+            PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
+            PlayerColor: reader.GetByte());
+    }
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerSpeedrunStartedBroadcastPacket()
+internal record PlayerStateUpdatePacket(uint SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
+    : IPacket, IPacketable<PlayerStateUpdatePacket>
 {
-    public readonly PacketType PacketType = PacketType.PlayerSpeedrunStartedBroadcast;
+    public PacketType PacketType => PacketType.PlayerStateUpdate;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(SpeedrunFrameIndex);
+        writer.Put(PuzzlePieces);
+        EntitySnapshot.Serialize(writer);
+    }
+
+    public static PlayerStateUpdatePacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.PlayerStateUpdate))
+            return default!;
+
+        return new(
+            SpeedrunFrameIndex: reader.GetUInt(),
+            PuzzlePieces: reader.GetByte(),
+            EntitySnapshot: EntitySnapshot.Deserialize(reader));
+    }
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerChatMessagePacket(string message)
+// TODO: Player name and color shouldn't be included with every update
+internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName, PlayerColor PlayerColor, uint SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
+    : IPacket, IPacketable<PlayerStateBroadcastPacket>
 {
-    public readonly PacketType PacketType = PacketType.PlayerChatMessage;
-    public readonly string Message = message.Trim();
+    public PacketType PacketType => PacketType.PlayerStateBroadcast;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(PlayerId);
+        writer.Put(PlayerName, PacketConstants.PlayerNameMaxLength);
+        writer.Put(PlayerColor);
+        writer.Put(SpeedrunFrameIndex);
+        writer.Put(PuzzlePieces);
+        EntitySnapshot.Serialize(writer);
+    }
+
+    public static PlayerStateBroadcastPacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.PlayerStateBroadcast))
+            return default!;
+
+        return new(
+            PlayerId: reader.GetByte(),
+            PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
+            PlayerColor: reader.GetByte(),
+            SpeedrunFrameIndex: reader.GetUInt(),
+            PuzzlePieces: reader.GetByte(),
+            EntitySnapshot: EntitySnapshot.Deserialize(reader));
+    }
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-internal unsafe readonly struct PlayerChatMessageBroadcastPacket(PlayerId playerId, string message)
+internal record PlayerChatMessagePacket(string Message)
+    : IPacket, IPacketable<PlayerChatMessagePacket>
 {
-    public readonly PacketType PacketType = PacketType.PlayerChatMessageBroadcast;
-    public readonly PlayerId PlayerId = playerId;
-    public readonly string Message = message.Trim();
+    public PacketType PacketType => PacketType.PlayerChatMessage;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(Message, PacketConstants.ChatMessageMaxLength);
+    }
+
+    public static PlayerChatMessagePacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.PlayerChatMessage))
+            return default!;
+
+        return new(Message: reader.GetString(PacketConstants.ChatMessageMaxLength));
+    }
+}
+
+internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, PlayerColor Color)
+    : IPacket, IPacketable<PlayerChatMessageBroadcastPacket>
+{
+    public PacketType PacketType => PacketType.PlayerChatMessageBroadcast;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(Sender, PacketConstants.PlayerNameMaxLength);
+        writer.Put(Message, PacketConstants.ChatMessageMaxLength);
+        writer.Put((byte)Color.KnownColor);
+    }
+
+    public static PlayerChatMessageBroadcastPacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.PlayerChatMessageBroadcast))
+            return default!;
+
+        return new(
+            Sender: reader.GetString(PacketConstants.PlayerNameMaxLength),
+            Message: reader.GetString(PacketConstants.ChatMessageMaxLength),
+            Color: (KnownColor)reader.GetByte());
+    }
+}
+
+internal record StartSpeedrunBroadcastPacket()
+    : IPacket, IPacketable<StartSpeedrunBroadcastPacket>
+{
+    public PacketType PacketType => PacketType.StartSpeedrunBroadcast;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+    }
+
+    public static StartSpeedrunBroadcastPacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.StartSpeedrunBroadcast))
+            return default!;
+
+        return new();
+    }
 }
 
 internal static class PacketParser
 {
-    public static bool TryParse<TPacket>(byte[] data, out TPacket result) where TPacket : unmanaged
+    public static bool ReadPacketType(this NetDataReader reader, PacketType expectedPacketType)
     {
-        var expectedSize = Unsafe.SizeOf<TPacket>();
-        if (data.Length != expectedSize)
+        return reader.AvailableBytes > 0 && reader.GetByte() == (byte)expectedPacketType;
+    }
+
+    public static bool TryReadPacket(NetDataReader reader, [NotNullWhen(true)] out IPacket? result)
+    {
+        if (reader.AvailableBytes == 0)
         {
-            result = default;
+            result = null;
             return false;
         }
 
-        result = MemoryMarshal.Read<TPacket>(data);
-        return true;
+        var packetType = (PacketType)reader.PeekByte();
+
+        result = packetType switch
+        {
+            PacketType.PlayerJoinRequest => PlayerJoinRequestPacket.Deserialize(reader),
+            PacketType.PlayerJoinResponse => PlayerJoinResponsePacket.Deserialize(reader),
+            PacketType.PlayerStateUpdate => PlayerStateUpdatePacket.Deserialize(reader),
+            PacketType.PlayerStateBroadcast => PlayerStateBroadcastPacket.Deserialize(reader),
+            PacketType.PlayerChatMessage => PlayerChatMessagePacket.Deserialize(reader),
+            PacketType.PlayerChatMessageBroadcast => PlayerChatMessageBroadcastPacket.Deserialize(reader),
+            _ => null,
+        };
+
+        return result != null;
+    }
+
+    public static TPacket Read<TPacket>(NetDataReader reader) where TPacket : class, INetSerializable, new()
+    {
+        var result = new TPacket();
+        result.Deserialize(reader);
+        return result;
     }
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public record struct EntitySnapshot(int FrameIndex, byte World, byte Level, Vector2 Position, bool FacingLeft, byte AnimationIndex, float AnimationTime)
+public record EntitySnapshot(int FrameIndex, byte World, byte Level, Vector2 Position, bool FacingLeft, byte AnimationIndex, float AnimationTime)
+    : IPacketable<EntitySnapshot>
 {
-    public static readonly EntitySnapshot Empty = default;
-}
+    public static EntitySnapshot Empty => new(
+        FrameIndex: default,
+        World: default,
+        Level: default,
+        Position: default,
+        FacingLeft: default,
+        AnimationIndex: default,
+        AnimationTime: default);
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public unsafe struct FixedLengthAsciiString()
-{
-    private const int MaxBytes = 16;
-    private fixed byte AsciiBytes[MaxBytes];
-
-    public static implicit operator string(FixedLengthAsciiString fixedLengthStr)
+    public void Serialize(NetDataWriter writer)
     {
-        var result = Encoding.ASCII.GetString(fixedLengthStr.AsciiBytes, MaxBytes).Trim();
-        return result;
+        writer.Put(FrameIndex);
+        writer.Put(World);
+        writer.Put(Level);
+        writer.Put(Position.X);
+        writer.Put(Position.Y);
+        writer.Put(FacingLeft);
+        writer.Put(AnimationIndex);
+        writer.Put(AnimationTime);
     }
 
-    public static implicit operator FixedLengthAsciiString(string str)
+    public static EntitySnapshot Deserialize(NetDataReader reader)
     {
-        var asciiBytes = Encoding.ASCII.GetBytes(str.Trim());
-
-        if (asciiBytes.Length > MaxBytes)
-            asciiBytes = asciiBytes[..MaxBytes];
-
-        var result = new FixedLengthAsciiString();
-
-        var span = new Span<byte>(result.AsciiBytes, MaxBytes);
-        span.Fill((byte)' ');
-        asciiBytes.CopyTo(span);
-
-        return result;
+        return new(
+            FrameIndex: reader.GetInt(),
+            World: reader.GetByte(),
+            Level: reader.GetByte(),
+            Position: new(reader.GetFloat(), reader.GetFloat()),
+            FacingLeft: reader.GetBool(),
+            AnimationIndex: reader.GetByte(),
+            AnimationTime: reader.GetFloat());
     }
-
-    public override readonly string ToString() => (string)this;
 }

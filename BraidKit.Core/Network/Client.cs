@@ -1,6 +1,7 @@
 ﻿using LiteNetLib;
 using LiteNetLib.Utils;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 
 namespace BraidKit.Core.Network;
 
@@ -10,7 +11,11 @@ public sealed class Client : IDisposable
     private NetPeer? _connectedServer;
     private Player? OwnPlayer { get; set; }
     private readonly Dictionary<PlayerId, Player> _otherPlayers = [];
+    private readonly List<ChatMessage> _chatLog = [];
     private int lastPollPacketCount = 0;
+
+    public event Action StartSpeedrunEvent = null!;
+    public event Action<ChatMessage> ChatMessageReceivedEvent = null!;
 
     /// <summary>True when connection to server has been established</summary>
     [MemberNotNullWhen(true, nameof(_connectedServer))]
@@ -52,7 +57,7 @@ public sealed class Client : IDisposable
         listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod, channel) =>
         {
             lastPollPacketCount++;
-            OnPacketReceived(dataReader.GetRemainingBytes(), fromPeer);
+            OnPacketReceived(dataReader, fromPeer);
             dataReader.Recycle();
         };
     }
@@ -84,6 +89,10 @@ public sealed class Client : IDisposable
         return result;
     }
 
+    public List<ChatMessage> GetChat() => [.. _chatLog];
+
+    public PlayerColor GetOwnPlayerColor() => OwnPlayer?.Color ?? KnownColor.White;
+
     public async Task<bool> ConnectToServer(string serverHostnameOrIpAddress, int serverPort, string playerName = "", PlayerColor playerColor = default, CancellationToken ct = default)
     {
         if (IsConnected)
@@ -92,9 +101,8 @@ public sealed class Client : IDisposable
         Console.WriteLine($"Connecting to server {serverHostnameOrIpAddress}:{serverPort}");
 
         var packet = new PlayerJoinRequestPacket(playerName, playerColor);
-        var bytes = UdpHelper.StructToBytes(packet);
         var writer = new NetDataWriter();
-        writer.Put(bytes);
+        packet.Serialize(writer);
 
         const int maxAttempts = 10;
         for (int i = 0; i < maxAttempts && !IsConnected && !ct.IsCancellationRequested; i++)
@@ -129,21 +137,32 @@ public sealed class Client : IDisposable
         OwnPlayer.Updated = DateTime.Now;
 
         var packet = new PlayerStateUpdatePacket(OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot);
-        var bytes = UdpHelper.StructToBytes(packet);
         var writer = new NetDataWriter();
-        writer.Put(bytes);
+        packet.Serialize(writer);
 
-        _connectedServer.Send(bytes, DeliveryMethod.Unreliable);
+        _connectedServer.Send(writer, DeliveryMethod.Unreliable);
         _netManager.TriggerUpdate(); // Flush packet immediately
     }
 
+    // TODO: Remove non-responding clients from server instead of continuously sending keep-alive packets
     /// <summary>Updates current player state with new frame index (used to send keep-alive packet when game is paused)</summary>
     public void SendPlayerStateUpdate(int frameIndex)
+    {
+        if (!IsGameInitialized) return;
+
+        SendPlayerStateUpdate(OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot with { FrameIndex = frameIndex });
+    }
+
+    public void SendChatMessage(string message)
     {
         if (!IsGameInitialized)
             return;
 
-        SendPlayerStateUpdate(OwnPlayer.SpeedrunFrameIndex, OwnPlayer.PuzzlePieces, OwnPlayer.EntitySnapshot with { FrameIndex = frameIndex });
+        var packet = new PlayerChatMessagePacket(message);
+        var writer = new NetDataWriter();
+        packet.Serialize(writer);
+
+        _connectedServer.Send(writer, DeliveryMethod.ReliableOrdered);
     }
 
     public void SimulateLatency(int maxLatency)
@@ -155,38 +174,33 @@ public sealed class Client : IDisposable
         _netManager.SimulationPacketLossChance = maxLatency > 0 ? 10 : 0;
     }
 
-    private void OnPacketReceived(byte[] data, NetPeer sender)
+    private void OnPacketReceived(NetDataReader reader, NetPeer sender)
     {
-        if (data.Length == 0)
+        if (!PacketParser.TryReadPacket(reader, out var packet))
             return;
 
-        var packetType = (PacketType)data[0];
-        switch (packetType)
+        switch (packet)
         {
-            case PacketType.PlayerJoinResponse:
-                if (PacketParser.TryParse<PlayerJoinResponsePacket>(data, out var playerJoinResponsePacket))
-                    HandlePlayerJoinResponse(playerJoinResponsePacket, sender);
+            case PlayerJoinResponsePacket playerJoinResponsePacket:
+                HandlePlayerJoinResponse(playerJoinResponsePacket, sender);
                 break;
-            case PacketType.PlayerStateBroadcast:
-                if (PacketParser.TryParse<PlayerStateBroadcastPacket>(data, out var playerStateBroadcastPacket))
-                    HandlePlayerStateBroadcast(playerStateBroadcastPacket);
+            case PlayerStateBroadcastPacket playerStateBroadcastPacket:
+                HandlePlayerStateBroadcast(playerStateBroadcastPacket);
+                break;
+            case PlayerChatMessageBroadcastPacket playerChatMessageBroadcastPacket:
+                HandlePlayerChatMessageBroadcast(playerChatMessageBroadcastPacket);
+                break;
+            case StartSpeedrunBroadcastPacket startSpeedrunBroadcastPacket:
+                HandleStartSpeedrunBroadcast(startSpeedrunBroadcastPacket);
                 break;
             default:
-                Console.WriteLine($"Unsupported packet type: {packetType}");
+                Console.WriteLine($"Unsupported packet type: {packet.PacketType}");
                 break;
         }
     }
 
     private void HandlePlayerJoinResponse(PlayerJoinResponsePacket packet, NetPeer sender)
     {
-        if (!packet.Accepted)
-        {
-            Console.WriteLine("Connection request refused by server");
-            if (packet.ApiVersion != ApiVersion.Current)
-                Console.WriteLine($"Version mismatch: Client={ApiVersion.Current}, Server={packet.ApiVersion}");
-            return;
-        }
-
         _connectedServer = sender;
 
         OwnPlayer = new()
@@ -237,5 +251,22 @@ public sealed class Client : IDisposable
 
             Console.WriteLine($"Player joined: {player.Name}");
         }
+    }
+
+    private void HandlePlayerChatMessageBroadcast(PlayerChatMessageBroadcastPacket packet)
+    {
+        var message = new ChatMessage(packet.Sender, packet.Message, packet.Color);
+        _chatLog.Add(message);
+
+        const int chatLogMaxCount = 10;
+        if (_chatLog.Count > chatLogMaxCount)
+            _chatLog.RemoveRange(0, _chatLog.Count - chatLogMaxCount);
+
+        ChatMessageReceivedEvent?.Invoke(message);
+    }
+
+    private void HandleStartSpeedrunBroadcast(StartSpeedrunBroadcastPacket startSpeedrunBroadcastPacket)
+    {
+        StartSpeedrunEvent?.Invoke();
     }
 }

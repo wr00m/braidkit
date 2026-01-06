@@ -158,9 +158,13 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         }
     }
 
-    public void RenderChat(string chatInput, PlayerColor? color = null)
+    public void RenderChat(IReadOnlyList<ChatMessage> chatLog, bool inputActive, string? chatInput, PlayerColor inputColor)
     {
         if (_braidGame.InMainMenu)
+            return;
+
+        var prevMessages = chatLog.Where(x => inputActive || !x.Stale).OrderByDescending(x => x.Received).ToList();
+        if (!inputActive && prevMessages.Count == 0)
             return;
 
         GetMatrices(out var _, out var screenMtx, out var worldToScreenMtx);
@@ -169,15 +173,34 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         _textRenderer.SetViewProjectionMatrix(screenMtx);
 
         const float margin = 10f;
+        const float lineHeight = 1.5f;
+        var bottom = _braidGame.ScreenHeight * .85f;
 
-        _textRenderer.RenderText(
-            $"Chat: {chatInput}",
-            margin,
-            _braidGame.ScreenHeight * .8f,
-            HAlign.Left,
-            VAlign.Top,
-            RenderSettings.FontSize,
-            new((color ?? KnownColor.White).ToRgba()));
+        foreach (var (chatMessage, i) in prevMessages.Select((x, i) => (x, i)))
+        {
+            var color = new Color4(chatMessage.Color.ToRgba());
+            if (chatMessage.Stale)
+                color *= new Color4(1f, 1f, 1f, .5f);
+
+            _textRenderer.RenderText(
+                $"{chatMessage.Sender}: {chatMessage.Message}",
+                margin,
+                bottom - RenderSettings.FontSize * lineHeight * (i + 2),
+                HAlign.Left,
+                VAlign.Top,
+                RenderSettings.FontSize,
+                color);
+        }
+
+        if (inputActive)
+            _textRenderer.RenderText(
+                $"Chat: {chatInput}",
+                margin,
+                bottom,
+                HAlign.Left,
+                VAlign.Top,
+                RenderSettings.FontSize,
+                new(inputColor.ToRgba()));
     }
 
     private void GetMatrices(out Matrix4x4 viewProjMtx, out Matrix4x4 screenMtx, out Matrix4x4 worldToScreenMtx)

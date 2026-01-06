@@ -42,14 +42,14 @@ internal static partial class Commands
         {
             var serverAddress = parseResult.GetRequiredValue<string>("--address");
             var serverPort = parseResult.GetRequiredValue<int>("--port");
-            var playerName = parseResult.GetRequiredValue<string>("--name");
+            var playerName = parseResult.GetRequiredValue<string>("--name").Truncate(PacketConstants.PlayerNameMaxLength);
             var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
 
             var joinedServer = braidGame.Process.InjectJoinServer(new()
             {
                 ServerAddress = braidGame.Process.WriteMemory(serverAddress),
                 ServerPort = serverPort,
-                PlayerName = playerName,
+                PlayerName = braidGame.Process.WriteMemory(playerName),
                 PlayerColor = playerColor,
             });
 
@@ -81,7 +81,7 @@ internal static partial class Commands
         {
             var serverAddress = parseResult.GetRequiredValue<string>("--address");
             var serverPort = parseResult.GetRequiredValue<int>("--port");
-            var playerName = parseResult.GetRequiredValue<string>("--name");
+            var playerName = parseResult.GetRequiredValue<string>("--name").Truncate(PacketConstants.PlayerNameMaxLength);
             var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
             var latency = parseResult.GetRequiredValue<int>("--latency");
 
@@ -101,15 +101,27 @@ internal static partial class Commands
 
             var stopwatch = Stopwatch.StartNew();
             const double fps = 60.0;
-            var random = new Random();
+
+            client.ChatMessageReceivedEvent += chatMessage =>
+            {
+                if (string.Equals(chatMessage.Message, "Hi", StringComparison.OrdinalIgnoreCase))
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(1000);
+                        client.SendChatMessage("Hello, sir!");
+                    });
+            };
 
             while (client.IsConnected && !cancellationTokenSource.IsCancellationRequested)
             {
+                var oldChatMessages = client.GetChat();
                 client.PollEvents();
+                var newChatMessages = client.GetChat().Except(oldChatMessages);
 
                 var frameIndex = (int)Math.Floor(stopwatch.Elapsed.TotalSeconds * fps);
                 var snapshot = _testAnimation[frameIndex % _testAnimation.Count] with { FrameIndex = frameIndex };
                 client.SendPlayerStateUpdate((uint)snapshot.FrameIndex, 17, snapshot);
+
                 await Task.Delay(15);
             }
         });

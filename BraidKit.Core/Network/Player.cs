@@ -62,7 +62,9 @@ public readonly record struct PlayerColor(KnownColor KnownColor)
 {
     public static readonly PlayerColor Undefined = default;
     public static implicit operator PlayerColor(KnownColor x) => new(x);
+    public static implicit operator PlayerColor(byte x) => new((KnownColor)x);
     public static implicit operator Color(PlayerColor x) => Color.FromKnownColor(x.KnownColor);
+    public static implicit operator byte(PlayerColor x) => (byte)x.KnownColor;
     public uint ToRgba() { Color c = this; return (uint)((c.R) | (c.G << 8) | (c.B << 16) | (c.A << 24)); }
     public Vector4 ToVector4() { Color c = this; return new Vector4(c.R, c.G, c.B, c.A) / 255f; }
     public string ToHex(string prefix = "#") { Color c = this; return $"{prefix}{c.R:X2}{c.G:X2}{c.B:X2}{c.A:X2}"; }

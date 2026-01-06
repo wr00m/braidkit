@@ -29,7 +29,7 @@ public sealed class Server : IDisposable
                 return;
             }
 
-            if (!PacketParser.TryParse<PlayerJoinRequestPacket>(request.Data.GetRemainingBytes(), out var playerJoinRequestPacket) || playerJoinRequestPacket.PacketType != PacketType.PlayerJoinRequest)
+            if (!PacketParser.TryReadPacket(request.Data, out var packet) || packet is not PlayerJoinRequestPacket playerJoinRequestPacket)
             {
                 request.Reject(); // TODO: "Invalid join request"
                 return;
@@ -53,9 +53,8 @@ public sealed class Server : IDisposable
             if (_connectedPlayers.TryGetValue(peer.Id, out var player))
             {
                 var packet = new PlayerJoinResponsePacket(player.PlayerId, player.Name, player.Color);
-                var bytes = UdpHelper.StructToBytes(packet);
                 var writer = new NetDataWriter();
-                writer.Put(bytes);
+                packet.Serialize(writer);
 
                 peer.Send(writer, DeliveryMethod.ReliableOrdered);
             }
@@ -69,12 +68,9 @@ public sealed class Server : IDisposable
 
         listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod, channel) =>
         {
-            OnPacketReceived(dataReader.GetRemainingBytes(), fromPeer);
+            OnPacketReceived(dataReader, fromPeer);
             dataReader.Recycle();
         };
-
-        // TODO
-        //Console.WriteLine($"Server started on port {port}. Press Ctrl+C to exit.\n");
     }
 
     public void Dispose()
@@ -110,20 +106,21 @@ public sealed class Server : IDisposable
         }
     }
 
-    private void OnPacketReceived(byte[] data, NetPeer sender)
+    private void OnPacketReceived(NetDataReader reader, NetPeer sender)
     {
-        if (data.Length == 0)
+        if (!PacketParser.TryReadPacket(reader, out var packet))
             return;
 
-        var packetType = (PacketType)data[0];
-        switch (packetType)
+        switch (packet)
         {
-            case PacketType.PlayerStateUpdate:
-                if (PacketParser.TryParse<PlayerStateUpdatePacket>(data, out var playerStateUpdatePacket))
-                    HandlePlayerStateUpdate(playerStateUpdatePacket, sender);
+            case PlayerStateUpdatePacket playerStateUpdatePacket:
+                HandlePlayerStateUpdate(playerStateUpdatePacket, sender);
+                break;
+            case PlayerChatMessagePacket playerChatMessagePacket:
+                HandlePlayerChatMessage(playerChatMessagePacket, sender);
                 break;
             default:
-                Console.WriteLine($"Unsupported packet type: {packetType}");
+                Console.WriteLine($"Unsupported packet type: {packet.PacketType}");
                 break;
         }
     }
@@ -189,14 +186,47 @@ public sealed class Server : IDisposable
         if (otherPlayers.Count > 0)
         {
             var broadcastPacket = new PlayerStateBroadcastPacket(player.PlayerId, player.Name, player.Color, player.SpeedrunFrameIndex, player.PuzzlePieces, player.EntitySnapshot);
-            var broadcastBytes = UdpHelper.StructToBytes(broadcastPacket);
             var broadcastWriter = new NetDataWriter();
-            broadcastWriter.Put(broadcastBytes);
+            broadcastPacket.Serialize(broadcastWriter);
 
             foreach (var otherPlayer in otherPlayers)
                 otherPlayer.Send(broadcastWriter, DeliveryMethod.Unreliable);
 
             _netManager.TriggerUpdate(); // Flush packets immediately
+        }
+    }
+
+    private void HandlePlayerChatMessage(PlayerChatMessagePacket playerChatMessagePacket, NetPeer sender)
+    {
+        if (!_connectedPlayers.TryGetValue(sender.Id, out var player))
+            return;
+
+        if (HandleChatMessageCommand(playerChatMessagePacket.Message))
+        {
+            Console.WriteLine($"Command from {player.Name}: {playerChatMessagePacket.Message}");
+            return;
+        }
+
+        Console.WriteLine($"Chat message from {player.Name}: {playerChatMessagePacket.Message}");
+
+        var broadcastPacket = new PlayerChatMessageBroadcastPacket(player.Name, playerChatMessagePacket.Message, player.Color);
+        var broadcastWriter = new NetDataWriter();
+        broadcastPacket.Serialize(broadcastWriter);
+        _netManager.SendToAll(broadcastWriter, DeliveryMethod.ReliableOrdered);
+    }
+
+    private bool HandleChatMessageCommand(string command)
+    {
+        switch (command)
+        {
+            case "!start":
+                var packet = new StartSpeedrunBroadcastPacket();
+                var writer = new NetDataWriter();
+                packet.Serialize(writer);
+                _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                return true;
+            default:
+                return false;
         }
     }
 

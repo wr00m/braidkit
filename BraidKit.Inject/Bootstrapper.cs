@@ -46,16 +46,12 @@ internal static class Bootstrapper
                     _multiplayerClient.SendPlayerStateUpdate(_braidGame.FrameCount);
                     _gameRenderer.RenderPlayerLabelsAndLeaderboard(_multiplayerClient.GetPlayers());
 
-
                     if (!_braidGame.InMainMenu)
                     {
-                        if (_chatInput.Update(out var message))
-                        {
-                            // TODO: Send message to server
-                        }
+                        if (_chatInput.Update(out var completedMessage))
+                            _multiplayerClient.SendChatMessage(completedMessage);
 
-                        if (_chatInput.IsActive)
-                            _gameRenderer.RenderChat(_chatInput.Message);
+                        _gameRenderer.RenderChat(_multiplayerClient.GetChat(), _chatInput.IsActive, _chatInput.Message, _multiplayerClient.GetOwnPlayerColor());
                     }
                 }
             });
@@ -132,14 +128,19 @@ internal static class Bootstrapper
                 _multiplayerClient = null;
             }
 
-            if (args.ServerAddress == IntPtr.Zero)
+            var serverAddress = ReadAndReleaseStringArg(args.ServerAddress);
+            var playerName = ReadAndReleaseStringArg(args.PlayerName) ?? "";
+
+            if (string.IsNullOrWhiteSpace(serverAddress))
                 return 0;
 
-            var serverAddress = Marshal.PtrToStringUni(args.ServerAddress)!;
-            NativeMethods.VirtualFree(args.ServerAddress, 0, FreeType.Release);
-
             _multiplayerClient = new();
-            var connected = _multiplayerClient.ConnectToServer(serverAddress, args.ServerPort, args.PlayerName, args.PlayerColor).GetAwaiter().GetResult();
+            _multiplayerClient.StartSpeedrunEvent += () =>
+            {
+                // TODO
+            };
+
+            var connected = _multiplayerClient.ConnectToServer(serverAddress, args.ServerPort, playerName, args.PlayerColor).GetAwaiter().GetResult();
 
             return connected ? 1 : 0;
         }
@@ -148,5 +149,16 @@ internal static class Bootstrapper
             Logger.Log(ex);
             throw;
         }
+    }
+
+    private static string? ReadAndReleaseStringArg(IntPtr addr)
+    {
+        if (addr == IntPtr.Zero)
+            return null;
+
+        var result = Marshal.PtrToStringUni(addr);
+        NativeMethods.VirtualFree(addr, 0, FreeType.Release);
+
+        return result;
     }
 }
