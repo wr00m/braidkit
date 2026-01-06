@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace BraidKit.Core.Game;
 
@@ -71,8 +72,13 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
     private GameValue<int> SpeedrunFlags { get; } = new(_processMemoryHandler, 0x5f9428);
     private GameValue<uint> SpeedrunNumFrames { get; } = new(_processMemoryHandler, 0x5f9434);
 
-    private bool IsSpeedrunModeActive => SpeedrunFlags != 0;
-    public uint SpeedrunFrameIndex => IsSpeedrunModeActive ? SpeedrunNumFrames : 0;
+    public bool IsSpeedrunModeActive => SpeedrunFlags != 0;
+    public int? SpeedrunFrameIndex => IsSpeedrunModeActive ? (int)SpeedrunNumFrames.Value : null;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void LaunchSpeedrunDelegate(int world, int level, int runIndex);
+    private static readonly LaunchSpeedrunDelegate _launchSpeedrun = Marshal.GetDelegateForFunctionPointer<LaunchSpeedrunDelegate>(0x4c3dc0);
+    public void LaunchFullGameSpeedrun() => _launchSpeedrun(0, 0, 5);
 
     public float Zoom
     {

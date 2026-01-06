@@ -120,7 +120,7 @@ internal static partial class Commands
 
                 var frameIndex = (int)Math.Floor(stopwatch.Elapsed.TotalSeconds * fps);
                 var snapshot = _testAnimation[frameIndex % _testAnimation.Count] with { FrameIndex = frameIndex };
-                client.SendPlayerStateUpdate((uint)snapshot.FrameIndex, 17, snapshot);
+                client.SendPlayerStateUpdate(snapshot.FrameIndex, 17, snapshot);
 
                 await Task.Delay(15);
             }

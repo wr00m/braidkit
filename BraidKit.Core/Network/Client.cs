@@ -122,7 +122,7 @@ public sealed class Client : IDisposable
         return IsConnected;
     }
 
-    public void SendPlayerStateUpdate(uint speedrunFrameIndex, int puzzlePieces, EntitySnapshot entitySnapshot)
+    public void SendPlayerStateUpdate(int? speedrunFrameIndex, int puzzlePieces, EntitySnapshot entitySnapshot)
     {
         if (!IsGameInitialized)
             return;

@@ -220,10 +220,20 @@ public sealed class Server : IDisposable
         switch (command)
         {
             case "!start":
-                var packet = new StartSpeedrunBroadcastPacket();
-                var writer = new NetDataWriter();
-                packet.Serialize(writer);
-                _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                if (_connectedPlayers.Any(x => x.Value.IsInSpeedrunMode))
+                {
+                    var packet = PlayerChatMessageBroadcastPacket.ServerMessage("Cannot start synchronized speedrun because a player is already in speedrun mode");
+                    var writer = new NetDataWriter();
+                    packet.Serialize(writer);
+                    _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                }
+                else
+                {
+                    var packet = new StartSpeedrunBroadcastPacket();
+                    var writer = new NetDataWriter();
+                    packet.Serialize(writer);
+                    _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                }
                 return true;
             default:
                 return false;

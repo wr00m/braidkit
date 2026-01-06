@@ -137,7 +137,8 @@ internal static class Bootstrapper
             _multiplayerClient = new();
             _multiplayerClient.StartSpeedrunEvent += () =>
             {
-                // TODO
+                if (!_braidGame.IsSpeedrunModeActive)
+                    _braidGame.LaunchFullGameSpeedrun();
             };
 
             var connected = _multiplayerClient.ConnectToServer(serverAddress, args.ServerPort, playerName, args.PlayerColor).GetAwaiter().GetResult();

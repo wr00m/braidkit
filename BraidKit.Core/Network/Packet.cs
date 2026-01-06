@@ -31,6 +31,7 @@ public static class PacketConstants
 {
     public const int PlayerNameMaxLength = 25;
     public const int ChatMessageMaxLength = 100;
+    public const int SpeedrunFrameIndexNotStarted = -1; // If not in speedrun mode
 }
 
 internal record PlayerJoinRequestPacket(string PlayerName, PlayerColor PlayerColor, byte ApiVersion = ApiVersion.Current)
@@ -83,7 +84,7 @@ internal record PlayerJoinResponsePacket(PlayerId PlayerId, string PlayerName, P
     }
 }
 
-internal record PlayerStateUpdatePacket(uint SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
+internal record PlayerStateUpdatePacket(int? SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
     : IPacket, IPacketable<PlayerStateUpdatePacket>
 {
     public PacketType PacketType => PacketType.PlayerStateUpdate;
@@ -91,7 +92,7 @@ internal record PlayerStateUpdatePacket(uint SpeedrunFrameIndex, byte PuzzlePiec
     public void Serialize(NetDataWriter writer)
     {
         writer.Put((byte)PacketType);
-        writer.Put(SpeedrunFrameIndex);
+        writer.Put(SpeedrunFrameIndex, PacketConstants.SpeedrunFrameIndexNotStarted);
         writer.Put(PuzzlePieces);
         EntitySnapshot.Serialize(writer);
     }
@@ -102,14 +103,14 @@ internal record PlayerStateUpdatePacket(uint SpeedrunFrameIndex, byte PuzzlePiec
             return default!;
 
         return new(
-            SpeedrunFrameIndex: reader.GetUInt(),
+            SpeedrunFrameIndex: reader.GetNullableInt(PacketConstants.SpeedrunFrameIndexNotStarted),
             PuzzlePieces: reader.GetByte(),
             EntitySnapshot: EntitySnapshot.Deserialize(reader));
     }
 }
 
 // TODO: Player name and color shouldn't be included with every update
-internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName, PlayerColor PlayerColor, uint SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
+internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName, PlayerColor PlayerColor, int? SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
     : IPacket, IPacketable<PlayerStateBroadcastPacket>
 {
     public PacketType PacketType => PacketType.PlayerStateBroadcast;
@@ -120,7 +121,7 @@ internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName,
         writer.Put(PlayerId);
         writer.Put(PlayerName, PacketConstants.PlayerNameMaxLength);
         writer.Put(PlayerColor);
-        writer.Put(SpeedrunFrameIndex);
+        writer.Put(SpeedrunFrameIndex, PacketConstants.SpeedrunFrameIndexNotStarted);
         writer.Put(PuzzlePieces);
         EntitySnapshot.Serialize(writer);
     }
@@ -134,7 +135,7 @@ internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName,
             PlayerId: reader.GetByte(),
             PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
             PlayerColor: reader.GetByte(),
-            SpeedrunFrameIndex: reader.GetUInt(),
+            SpeedrunFrameIndex: reader.GetNullableInt(PacketConstants.SpeedrunFrameIndexNotStarted),
             PuzzlePieces: reader.GetByte(),
             EntitySnapshot: EntitySnapshot.Deserialize(reader));
     }
@@ -183,6 +184,8 @@ internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, 
             Message: reader.GetString(PacketConstants.ChatMessageMaxLength),
             Color: (KnownColor)reader.GetByte());
     }
+
+    public static PlayerChatMessageBroadcastPacket ServerMessage(string message) => new("Server", message, KnownColor.White);
 }
 
 internal record StartSpeedrunBroadcastPacket()
@@ -229,6 +232,7 @@ internal static class PacketParser
             PacketType.PlayerStateBroadcast => PlayerStateBroadcastPacket.Deserialize(reader),
             PacketType.PlayerChatMessage => PlayerChatMessagePacket.Deserialize(reader),
             PacketType.PlayerChatMessageBroadcast => PlayerChatMessageBroadcastPacket.Deserialize(reader),
+            PacketType.StartSpeedrunBroadcast => StartSpeedrunBroadcastPacket.Deserialize(reader),
             _ => null,
         };
 
@@ -240,6 +244,17 @@ internal static class PacketParser
         var result = new TPacket();
         result.Deserialize(reader);
         return result;
+    }
+
+    public static void Put(this NetDataWriter writer, int? value, int sentinelValue)
+    {
+        writer.Put(value ?? sentinelValue);
+    }
+
+    public static int? GetNullableInt(this NetDataReader reader, int sentinelValue)
+    {
+        var result = reader.GetInt();
+        return result != sentinelValue ? result : null;
     }
 }
 
