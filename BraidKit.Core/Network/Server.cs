@@ -81,10 +81,8 @@ public sealed class Server : IDisposable
 
     public async Task MainLoop(CancellationToken ct)
     {
-        // TODO: We shouldn't need high precision timer here once client implements frame interpolation
+        // TODO: We shouldn't need high precision timer here once client implements frame interpolation/extrapolation
         using var highPrecisionTimer = OperatingSystem.IsWindows() ? new HighPrecisionTimer(5) : null;
-
-        var pingStopwatch = Stopwatch.StartNew();
 
         while (_netManager.IsRunning && !ct.IsCancellationRequested)
         {
@@ -95,12 +93,6 @@ public sealed class Server : IDisposable
             foreach (var timedOutPlayerKey in timedOutPlayerKeys)
                 if (_connectedPlayers.Remove(timedOutPlayerKey, out var removedPlayer))
                     Console.WriteLine($"Removed timed out player {removedPlayer.Name}");
-
-            if (pingStopwatch.ElapsedMilliseconds > 5000)
-            {
-                _netManager.SendToAll([], DeliveryMethod.ReliableUnordered);
-                pingStopwatch.Restart();
-            }
 
             await Task.Delay(_connectedPlayers.Count > 0 ? 5 : 500, ct);
         }
@@ -201,7 +193,7 @@ public sealed class Server : IDisposable
         if (!_connectedPlayers.TryGetValue(sender.Id, out var player))
             return;
 
-        if (HandleChatMessageCommand(playerChatMessagePacket.Message))
+        if (HandleChatMessageCommand(playerChatMessagePacket.Message, sender))
         {
             Console.WriteLine($"Command from {player.Name}: {playerChatMessagePacket.Message}");
             return;
@@ -215,7 +207,7 @@ public sealed class Server : IDisposable
         _netManager.SendToAll(broadcastWriter, DeliveryMethod.ReliableOrdered);
     }
 
-    private bool HandleChatMessageCommand(string command)
+    private bool HandleChatMessageCommand(string command, NetPeer sender)
     {
         switch (command)
         {
@@ -234,6 +226,9 @@ public sealed class Server : IDisposable
                     packet.Serialize(writer);
                     _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
                 }
+                return true;
+            case "!disconnect":
+                sender.Disconnect();
                 return true;
             default:
                 return false;
