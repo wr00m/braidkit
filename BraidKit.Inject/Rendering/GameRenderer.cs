@@ -1,7 +1,6 @@
 ﻿using BraidKit.Core;
 using BraidKit.Core.Game;
 using BraidKit.Core.Network;
-using System.Drawing;
 using System.Numerics;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
@@ -12,12 +11,14 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 {
     private readonly LineRenderer _lineRenderer = new(_device);
     private readonly TextRenderer _textRenderer = new(_device);
+    private readonly SimpleRenderer _simpleRenderer = new(_device);
     public RenderSettings RenderSettings { get; set; } = RenderSettings.Off;
 
     public void Dispose()
     {
         _lineRenderer.Dispose();
         _textRenderer.Dispose();
+        _simpleRenderer.Dispose();
     }
 
     public void Render()
@@ -169,36 +170,44 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
         GetMatrices(out var _, out var screenMtx, out var worldToScreenMtx);
 
-        _textRenderer.Activate();
-        _textRenderer.SetViewProjectionMatrix(screenMtx);
-
         const float margin = 10f;
         const float lineHeight = 1.5f;
         var bottom = _braidGame.ScreenHeight * .85f;
 
-        foreach (var (chatMessage, i) in prevMessages.Select((x, i) => (x, i)))
+        // Render background
+        if (inputActive)
         {
-            var color = new Color4(chatMessage.Color.ToRgba());
-            if (chatMessage.Stale)
-                color *= new Color4(1f, 1f, 1f, .5f);
+            _simpleRenderer.Activate();
+            _simpleRenderer.SetViewProjectionMatrix(screenMtx);
 
+            var bgBottom = bottom + RenderSettings.FontSize * lineHeight * .5f;
+            var bgTop = bgBottom - ((prevMessages.Count > 0 ? prevMessages.Count + 1 : 0) + 1.5f) * RenderSettings.FontSize * lineHeight;
+            var bgColor = new Color4(.0f, .0f, .0f, .5f);
+            _simpleRenderer.RenderRectangle(0f, _braidGame.ScreenWidth, bgBottom, bgTop, bgColor);
+        }
+
+        _textRenderer.Activate();
+        _textRenderer.SetViewProjectionMatrix(screenMtx);
+
+        // Render previous messages
+        foreach (var (chatMessage, i) in prevMessages.Select((x, i) => (x, i)))
             _textRenderer.RenderText(
                 $"{chatMessage.Sender}: {chatMessage.Message}",
                 margin,
                 bottom - RenderSettings.FontSize * lineHeight * (i + 2),
                 HAlign.Left,
-                VAlign.Top,
+                VAlign.Bottom,
                 RenderSettings.FontSize,
-                color);
-        }
+                new(chatMessage.Color.ToRgba()));
 
+        // Render new message input
         if (inputActive)
             _textRenderer.RenderText(
                 $"Chat: {chatInput}",
                 margin,
                 bottom,
                 HAlign.Left,
-                VAlign.Top,
+                VAlign.Bottom,
                 RenderSettings.FontSize,
                 new(inputColor.ToRgba()));
     }

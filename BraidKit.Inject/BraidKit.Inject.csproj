@@ -13,14 +13,16 @@
     <None Remove="Rendering\Resources\font.json" />
     <None Remove="Rendering\Resources\font.png" />
     <None Remove="Rendering\Resources\LineShader.hlsl" />
-    <None Remove="Rendering\Resources\TextShader.hlsl" />
+    <None Remove="Rendering\Resources\TextureShader.hlsl" />
+    <None Remove="Rendering\Resources\white.png" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Rendering\Resources\font.json" />
     <EmbeddedResource Include="Rendering\Resources\font.png" />
     <EmbeddedResource Include="Rendering\Resources\LineShader.hlsl" />
-    <EmbeddedResource Include="Rendering\Resources\TextShader.hlsl" />
+    <EmbeddedResource Include="Rendering\Resources\TextureShader.hlsl" />
+    <EmbeddedResource Include="Rendering\Resources\white.png" />
   </ItemGroup>
 
   <ItemGroup>

@@ -26,11 +26,11 @@ VS_OUTPUT VertexShaderMain(VS_INPUT input)
 }
 
 uniform float4 Color;
-texture fontTexture : register(t0);
+texture theTexture : register(t0);
 
-sampler2D fontSampler = sampler_state
+sampler2D theSampler = sampler_state
 {
-    Texture = <fontTexture>;
+    Texture = <theTexture>;
     MinFilter = Linear;
     MagFilter = Linear;
     MipFilter = Linear;
@@ -40,5 +40,5 @@ sampler2D fontSampler = sampler_state
 
 float4 PixelShaderMain(VS_OUTPUT input) : COLOR
 {
-    return tex2D(fontSampler, input.texcoord) * Color;
+    return tex2D(theSampler, input.texcoord) * Color;
 }

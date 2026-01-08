@@ -9,8 +9,8 @@ namespace BraidKit.Inject.Rendering;
 
 internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
 {
-    private readonly IDirect3DVertexShader9 _textVertexShader = _device.CreateVertexShader(CompileShader("TextShader.hlsl", "VertexShaderMain", "vs_2_0"));
-    private readonly IDirect3DPixelShader9 _textPixelShader = _device.CreatePixelShader(CompileShader("TextShader.hlsl", "PixelShaderMain", "ps_2_0"));
+    private readonly IDirect3DVertexShader9 _textVertexShader = _device.CreateVertexShader(CompileShader("TextureShader.hlsl", "VertexShaderMain", "vs_2_0"));
+    private readonly IDirect3DPixelShader9 _textPixelShader = _device.CreatePixelShader(CompileShader("TextureShader.hlsl", "PixelShaderMain", "ps_2_0"));
     private readonly IDirect3DTexture9 _fontTexture = _device.LoadTexture("font.png");
     private readonly FontTextureInfo _font = Assembly.GetExecutingAssembly().ReadEmbeddedJsonFile<FontTextureInfo>("font.json");
     private const uint VS_ViewProjMtx = 0;
@@ -55,13 +55,13 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetPixelShaderConstant(PS_Color, [fontColor.ToVector4()]);
 
         // Get and render triangles
-        var triangles = new Primitives<FontVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY), useVertexBuffer: false);
+        var triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY), useVertexBuffer: false);
         triangles.Render();
     }
 
-    private List<FontVertex> GetTriangleVertices(string text, HAlign alignX, VAlign alignY)
+    private List<TexturedVertex> GetTriangleVertices(string text, HAlign alignX, VAlign alignY)
     {
-        var result = new List<FontVertex>(text.Length);
+        var result = new List<TexturedVertex>(text.Length);
         var divWidth = 1f / _font.Width;
         var divHeight = 1f / _font.Height;
         var lines = text.Split(FontTextureInfo.Newline);

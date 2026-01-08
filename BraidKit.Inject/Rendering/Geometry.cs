@@ -53,6 +53,13 @@ internal static class Geometry
         return quads.QuadsToTriangles();
     }
 
+    public static List<TexturedVertex> GetRectangleTriangleList(float xMin, float xMax, float yMin, float yMax) => QuadsToTriangles<TexturedVertex>([
+        new(xMin, yMin, 0f, 0f),
+        new(xMin, yMax, 0f, 1f),
+        new(xMax, yMax, 1f, 1f),
+        new(xMax, yMin, 1f, 0f),
+    ]);
+
     private static List<TVertex> QuadsToTriangles<TVertex>(this List<TVertex> verts) where TVertex : IVertex
     {
         if (verts.Count % 4 != 0)
