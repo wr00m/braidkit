@@ -4,7 +4,7 @@ using Vortice.Mathematics;
 namespace BraidKit.Core.Network;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct JoinServerSettings()
+public struct JoinServerSettings
 {
     public required IntPtr ServerAddress;
     public required int ServerPort;

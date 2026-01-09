@@ -15,6 +15,14 @@ internal class ChatInput
     {
         _keyboardState.UpdateState();
 
+        // Toggle typing off if escape key was pressed
+        if (_keyboardState.WasKeyJustPressed(VirtualKey.Escape))
+        {
+            Message = null;
+            completedMessage = null;
+            return false;
+        }
+
         // Toggle typing on/off if enter key was pressed
         if (_keyboardState.WasKeyJustPressed(VirtualKey.Enter))
         {

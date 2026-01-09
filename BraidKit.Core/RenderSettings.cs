@@ -17,6 +17,7 @@ public struct RenderSettings()
     public static readonly Color DefaultFontColor = ColorHelper.Cyan;
     public static readonly Color DefaultLineColor = ColorHelper.Empty;
 
+    // Bools are placed on 4-byte slots to match native DLL layout (32-bit BOOL/int flags)
     [FieldOffset(0)] public bool RenderEntityBounds = DefaultRenderEntityBounds;
     [FieldOffset(4)] public bool RenderEntityCenters = DefaultRenderEntityCenters;
     [FieldOffset(8)] public TextPosition RenderTimVelocity = DefaultRenderTimVelocity;

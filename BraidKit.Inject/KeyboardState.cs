@@ -61,4 +61,5 @@ internal enum VirtualKey : byte
 {
     Back = 0x08,
     Enter = 0x0d,
+    Escape = 0x1b,
 }
