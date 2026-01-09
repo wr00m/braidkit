@@ -9,7 +9,7 @@ public sealed class Server : IDisposable
 {
     private readonly NetManager _netManager;
     private readonly Dictionary<int, Player> _connectedPlayers = []; // Key is NetPeer id
-    public List<PlayerSummary> GetPlayers() => [.. _connectedPlayers.Where(x => !x.Value.TimedOut).Select(x => x.Value.ToSummary(ping: _netManager.GetPeerById(x.Key)!.Ping))];
+    public List<PlayerSummary> GetPlayers() => [.. _connectedPlayers.Select(x => x.Value.ToSummary(ping: _netManager.GetPeerById(x.Key)!.Ping))];
     public int Port => _netManager.LocalPort;
 
     public Server(int port)
@@ -86,13 +86,8 @@ public sealed class Server : IDisposable
         {
             _netManager.PollEvents();
 
-            // Remove timed out players to free up player ids and colors
-            var timedOutPlayerKeys = _connectedPlayers.Where(x => x.Value.TimedOut).Select(x => x.Key).ToList();
-            foreach (var timedOutPlayerKey in timedOutPlayerKeys)
-                if (_connectedPlayers.Remove(timedOutPlayerKey, out var removedPlayer))
-                    Console.WriteLine($"Removed timed out player {removedPlayer.Name}");
-
-            await Task.Delay(_connectedPlayers.Count > 0 ? 5 : 500, ct);
+            // Delay before polling again (longer delay if no players are connected)
+            await Task.Delay(_connectedPlayers.Count > 0 ? 5 : 200, ct);
         }
     }
 
@@ -110,7 +105,7 @@ public sealed class Server : IDisposable
                 HandlePlayerChatMessage(playerChatMessagePacket, sender);
                 break;
             default:
-                Console.WriteLine($"Unsupported packet type: {packet.PacketType}");
+                Console.WriteLine($"Unhandled packet: {packet.PacketType}");
                 break;
         }
     }
@@ -240,14 +235,6 @@ public sealed class Server : IDisposable
         return result != PlayerId.Unknown;
     }
 
-    private Color GetRandomPlayerColor()
-    {
-        var hue = Random.Shared.GetRandomFloat(0f, 1f);
-        var saturation = Random.Shared.GetRandomFloat(.6f, 1f);
-        var lightness = Random.Shared.GetRandomFloat(.7f, .9f);
-        return Color4.FromHSL(hue, saturation, lightness);
-    }
-
     private string GetUniquePlayerName()
     {
         var takenNames = _connectedPlayers.Values.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -261,12 +248,12 @@ public sealed class Server : IDisposable
                 return name;
         }
     }
-}
 
-public static class CollectionHelper
-{
-    public static T? GetRandom<T>(this ICollection<T> items, T? defaultIfEmpty = default)
+    private static Color GetRandomPlayerColor()
     {
-        return items.Count > 0 ? items.ElementAt(new Random().Next(0, items.Count)) : defaultIfEmpty;
+        var hue = Random.Shared.GetRandomFloat(0f, 1f);
+        var saturation = Random.Shared.GetRandomFloat(.6f, 1f);
+        var lightness = Random.Shared.GetRandomFloat(.7f, .9f);
+        return Color4.FromHSL(hue, saturation, lightness);
     }
 }

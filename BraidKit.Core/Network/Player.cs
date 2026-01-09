@@ -17,7 +17,6 @@ internal class Player
     public bool IsInSpeedrunMode => SpeedrunFrameIndex is not null;
     public TimeSpan TimeSinceLastUpdate => DateTime.Now - Updated;
     public bool Stale => TimeSinceLastUpdate > TimeSpan.FromSeconds(2);
-    public bool TimedOut => TimeSinceLastUpdate > TimeSpan.FromSeconds(30);
     public PlayerSummary ToSummary(bool isOwnPlayer = false, int ping = 0) => new(PlayerId, Name, Color, SpeedrunFrameIndex, PuzzlePieces, EntitySnapshot, isOwnPlayer, ping);
 }
 

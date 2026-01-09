@@ -13,7 +13,7 @@ public sealed class Client : IDisposable
     private Player? OwnPlayer { get; set; }
     private readonly Dictionary<PlayerId, Player> _otherPlayers = [];
     private readonly List<ChatMessage> _chatLog = [];
-    private int lastPollPacketCount = 0;
+    private int _pollPacketCount = 0;
 
     public event Action StartSpeedrunEvent = null!;
     public event Action<ChatMessage> ChatMessageReceivedEvent = null!;
@@ -57,7 +57,7 @@ public sealed class Client : IDisposable
 
         listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod, channel) =>
         {
-            lastPollPacketCount++;
+            _pollPacketCount++;
             OnPacketReceived(dataReader, fromPeer);
             dataReader.Recycle();
         };
@@ -69,17 +69,18 @@ public sealed class Client : IDisposable
         Console.WriteLine("Client stopped");
     }
 
-    /// <summary>Client doesn't have a "main loop" since we want to poll events at specific times to get predictable behavior</summary>
+    /// <summary>Client doesn't have a "main loop"; we want to poll events at specific times to get predictable behavior</summary>
+    /// <returns>Number of packets received</returns>
     public int PollEvents()
     {
-        lastPollPacketCount = 0;
+        _pollPacketCount = 0;
         _netManager.PollEvents();
 
         // Remove stale players
         var stalePlayerIds = _otherPlayers.Values.Where(x => x.Stale).Select(x => x.PlayerId).ToList();
         stalePlayerIds.ForEach(x => _otherPlayers.Remove(x));
 
-        return lastPollPacketCount;
+        return _pollPacketCount;
     }
 
     public List<PlayerSummary> GetPlayers()
@@ -195,7 +196,7 @@ public sealed class Client : IDisposable
                 HandleStartSpeedrunBroadcast(startSpeedrunBroadcastPacket);
                 break;
             default:
-                Console.WriteLine($"Unsupported packet type: {packet.PacketType}");
+                Console.WriteLine($"Unhandled packet: {packet.PacketType}");
                 break;
         }
     }
