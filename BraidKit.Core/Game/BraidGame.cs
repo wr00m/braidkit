@@ -1,10 +1,12 @@
-﻿using BraidKit.Core.MemoryAccess;
+﻿using BraidKit.Core.Helpers;
+using BraidKit.Core.MemoryAccess;
 using BraidKit.Core.Network;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Vortice.Mathematics;
+using RectangleF = System.Drawing.RectangleF;
 
 namespace BraidKit.Core.Game;
 
@@ -224,7 +226,7 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
         return true;
     }
 
-    public bool TryCreateTimGameQuad(EntitySnapshot entity, out GameQuad result, uint scaleColor = 0xffffffff)
+    public bool TryCreateTimGameQuad(EntitySnapshot entity, out GameQuad result, Color? scaleColor = null)
     {
         if (!TryGetTimSprite(entity, out var world, out var uv, out var textureMapAddr))
         {
@@ -251,7 +253,7 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
             TextureMap = textureMapAddr,
             PiecedImage = IntPtr.Zero,
             Flags = default,
-            ScaleColor = scaleColor,
+            ScaleColor = (scaleColor ?? ColorHelper.White).PackedValue,
             AddColor = default,
             CompandScale = 1,
         };

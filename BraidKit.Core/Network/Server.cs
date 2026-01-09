@@ -1,9 +1,7 @@
 ﻿using BraidKit.Core.Helpers;
 using LiteNetLib;
 using LiteNetLib.Utils;
-using System.Collections.Immutable;
-using System.Diagnostics;
-using System.Drawing;
+using Vortice.Mathematics;
 
 namespace BraidKit.Core.Network;
 
@@ -136,12 +134,12 @@ public sealed class Server : IDisposable
                     return false;
                 }
 
-                var playerColor = packet.PlayerColor != PlayerColor.Undefined ? packet.PlayerColor : GetPreferablyUniqueColor();
+                var playerColor = !packet.PlayerColor.IsSameColor(ColorHelper.Empty, ignoreAlpha: true) ? packet.PlayerColor : GetRandomPlayerColor();
 
                 player = new()
                 {
                     PlayerId = playerId,
-                    Name = !string.IsNullOrWhiteSpace(packet.PlayerName) ? packet.PlayerName : $"{playerColor.KnownColor} Tim",
+                    Name = !string.IsNullOrWhiteSpace(packet.PlayerName) ? packet.PlayerName : GetUniquePlayerName(),
                     Color = playerColor,
                     SpeedrunFrameIndex = default,
                     PuzzlePieces = default,
@@ -242,32 +240,27 @@ public sealed class Server : IDisposable
         return result != PlayerId.Unknown;
     }
 
-    private PlayerColor GetPreferablyUniqueColor()
+    private Color GetRandomPlayerColor()
     {
-        var takenColors = _connectedPlayers.Values.Select(x => x.Color.KnownColor).ToHashSet();
-        var unusedColors = _prioritizedColors.Except(takenColors).ToList();
-        return unusedColors.Count > 0 ? unusedColors.GetRandom() : _prioritizedColors.GetRandom();
+        var hue = Random.Shared.GetRandomFloat(0f, 1f);
+        var saturation = Random.Shared.GetRandomFloat(.6f, 1f);
+        var lightness = Random.Shared.GetRandomFloat(.7f, .9f);
+        return Color4.FromHSL(hue, saturation, lightness);
     }
 
-    private static readonly ImmutableList<KnownColor> _prioritizedColors = [
-        KnownColor.Cyan,
-        KnownColor.Yellow,
-        KnownColor.Green,
-        KnownColor.Purple,
-        KnownColor.Red,
-        KnownColor.Orange,
-        KnownColor.Pink,
-        KnownColor.Red,
-        KnownColor.Blue,
-        KnownColor.Gold,
-        KnownColor.Magenta,
-        KnownColor.Violet,
-        KnownColor.Chocolate,
-        KnownColor.Teal,
-        KnownColor.Aquamarine,
-        KnownColor.Khaki,
-        KnownColor.White,
-    ];
+    private string GetUniquePlayerName()
+    {
+        var takenNames = _connectedPlayers.Values.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        for (var i = 1; ; i++)
+        {
+            var suffix = i > 1 ? $"_{i}" : "";
+            var name = $"Tim{suffix}";
+
+            if (!takenNames.Contains(name))
+                return name;
+        }
+    }
 }
 
 public static class CollectionHelper

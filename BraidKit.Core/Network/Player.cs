@@ -1,6 +1,5 @@
-﻿using System.Drawing;
-using System.Numerics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
+using Vortice.Mathematics;
 
 namespace BraidKit.Core.Network;
 
@@ -8,7 +7,7 @@ internal class Player
 {
     public required PlayerId PlayerId { get; init; }
     public required string Name { get; set; }
-    public required PlayerColor Color { get; set; }
+    public required Color Color { get; set; }
     public required int? SpeedrunFrameIndex { get; set; } // Frame count since start of speedrun (if speedrun mode is active)
     public required byte PuzzlePieces { get; set; }
     public required EntitySnapshot EntitySnapshot { get; set; }
@@ -22,7 +21,7 @@ internal class Player
     public PlayerSummary ToSummary(bool isOwnPlayer = false, int ping = 0) => new(PlayerId, Name, Color, SpeedrunFrameIndex, PuzzlePieces, EntitySnapshot, isOwnPlayer, ping);
 }
 
-public record PlayerSummary(PlayerId PlayerId, string Name, PlayerColor Color, int? SpeedrunFrameIndex, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer, int Ping)
+public record PlayerSummary(PlayerId PlayerId, string Name, Color Color, int? SpeedrunFrameIndex, int PuzzlePieces, EntitySnapshot EntitySnapshot, bool IsOwnPlayer, int Ping)
 {
     public string FormatSpeedrunTime()
     {
@@ -59,18 +58,4 @@ public readonly record struct PlayerId(byte Value)
     public static implicit operator byte(PlayerId x) => x.Value;
     public static implicit operator PlayerId(byte x) => new(x);
     public override string ToString() => Value.ToString();
-}
-
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public readonly record struct PlayerColor(KnownColor KnownColor)
-{
-    public static readonly PlayerColor Undefined = default;
-    public static implicit operator PlayerColor(KnownColor x) => new(x);
-    public static implicit operator PlayerColor(byte x) => new((KnownColor)x);
-    public static implicit operator Color(PlayerColor x) => Color.FromKnownColor(x.KnownColor);
-    public static implicit operator byte(PlayerColor x) => (byte)x.KnownColor;
-    public uint ToRgba() { Color c = this; return (uint)((c.R) | (c.G << 8) | (c.B << 16) | (c.A << 24)); }
-    public Vector4 ToVector4() { Color c = this; return new Vector4(c.R, c.G, c.B, c.A) / 255f; }
-    public string ToHex(string prefix = "#") { Color c = this; return $"{prefix}{c.R:X2}{c.G:X2}{c.B:X2}{c.A:X2}"; }
-    public override string ToString() => KnownColor.ToString();
 }

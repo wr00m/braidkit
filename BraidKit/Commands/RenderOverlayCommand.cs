@@ -1,7 +1,7 @@
 ﻿using BraidKit.Core;
-using System.Buffers.Binary;
+using BraidKit.Core.Helpers;
 using System.CommandLine;
-using System.Globalization;
+using Vortice.Mathematics;
 
 namespace BraidKit.Commands;
 
@@ -16,8 +16,8 @@ internal static partial class Commands
             new Option<bool>("--all-entities", "-a") { Description = "Show bounds/centers for all entities", DefaultValueFactory = _ => RenderSettings.DefaultRenderAllEntities },
             new Option<float>("--line-width", "-l") { Description = "Geometry outline width", DefaultValueFactory = _ => RenderSettings.DefaultLineWidth },
             new Option<float>("--font-size", "-s") { Description = "Font size", DefaultValueFactory = _ => RenderSettings.DefaultFontSize },
-            new Option<string>("--font-color", "-f") { Description = "Font color in RGBA hex format", DefaultValueFactory = _ => RgbaToHex(RenderSettings.DefaultFontColor) },
-            new Option<string>("--line-color", "-n") { Description = "Geometry line color in RGBA hex format", DefaultValueFactory = _ => RgbaToHex(RenderSettings.DefaultLineColor) },
+            new Option<string>("--font-color", "-f") { Description = "Font color in RGBA hex format", DefaultValueFactory = _ => RenderSettings.DefaultFontColor.ToHex() },
+            new Option<string>("--line-color", "-n") { Description = "Geometry line color in RGBA hex format", DefaultValueFactory = _ => RenderSettings.DefaultLineColor.ToHex() },
             RenderOverlayResetCommand,
         }
         .SetBraidGameAction((braidGame, parseResult) =>
@@ -30,8 +30,8 @@ internal static partial class Commands
                 RenderAllEntities = parseResult.GetRequiredValue<bool>("--all-entities"),
                 LineWidth = parseResult.GetRequiredValue<float>("--line-width"),
                 FontSize = parseResult.GetRequiredValue<float>("--font-size"),
-                FontColor = HexToRgba(parseResult.GetRequiredValue<string>("--font-color")),
-                LineColor = HexToRgba(parseResult.GetRequiredValue<string>("--line-color")),
+                FontColor = parseResult.GetColor("--font-color", RenderSettings.DefaultFontColor),
+                LineColor = parseResult.GetColor("--line-color", RenderSettings.DefaultLineColor),
             };
 
             var isRendering = braidGame.Process.InjectRenderer(renderSettings);
@@ -46,20 +46,9 @@ internal static partial class Commands
             OutputRender(isRendering);
         });
 
-    private static string RgbaToHex(uint rgba)
-    {
-        var abgr = BinaryPrimitives.ReverseEndianness(rgba);
-        var hex = abgr.ToString("x8");
-        return hex;
-    }
-
-    private static uint HexToRgba(string hex)
-    {
-        var abgr = uint.Parse(hex, NumberStyles.HexNumber);
-        var rgba = BinaryPrimitives.ReverseEndianness(abgr);
-        return rgba;
-    }
-
     private static void OutputRender(bool isRendering)
         => Console.WriteLine($"Debug overlay rendering {(isRendering ? "on" : "off")}");
+
+    private static Color GetColor(this ParseResult parseResult, string name, Color fallbackColor)
+        => ColorHelper.TryParseHex(parseResult.GetValue<string>(name) ?? "", out var parsedColor) ? parsedColor : fallbackColor;
 }

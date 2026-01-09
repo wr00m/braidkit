@@ -4,7 +4,6 @@ using InjectDotnet;
 using System.Collections.Immutable;
 using System.CommandLine;
 using System.Diagnostics;
-using System.Drawing;
 
 namespace BraidKit.Commands;
 
@@ -36,14 +35,14 @@ internal static partial class Commands
             new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => _officialServerAddress },
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
             new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
-            new Option<KnownColor>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => default }.FormatEnumHelp("color"),
+            new Option<string>("--color", "-c") { Description = "Player color in RGB(A) hex format", DefaultValueFactory = _ => ColorHelper.Empty.ToHex() },
         }
         .SetBraidGameAction((braidGame, parseResult) =>
         {
             var serverAddress = parseResult.GetRequiredValue<string>("--address");
             var serverPort = parseResult.GetRequiredValue<int>("--port");
             var playerName = parseResult.GetRequiredValue<string>("--name").Truncate(PacketConstants.PlayerNameMaxLength);
-            var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
+            var playerColor = parseResult.GetColor("--color", ColorHelper.Empty);
 
             var joinedServer = braidGame.Process.InjectJoinServer(new()
             {
@@ -73,7 +72,7 @@ internal static partial class Commands
             new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => _localhost },
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
             new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
-            new Option<KnownColor>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => default }.FormatEnumHelp("color"),
+            new Option<string>("--color", "-c") { Description = "Player color in RGB(A) hex format", DefaultValueFactory = _ => ColorHelper.Empty.ToHex() },
             new Option<int>("--latency", "-l") { Description = "Simulated latency cap in milliseconds", DefaultValueFactory = _ => 0 },
         }
         .SetHidden(true)
@@ -82,7 +81,7 @@ internal static partial class Commands
             var serverAddress = parseResult.GetRequiredValue<string>("--address");
             var serverPort = parseResult.GetRequiredValue<int>("--port");
             var playerName = parseResult.GetRequiredValue<string>("--name").Truncate(PacketConstants.PlayerNameMaxLength);
-            var playerColor = parseResult.GetRequiredValue<KnownColor>("--color");
+            var playerColor = parseResult.GetColor("--color", ColorHelper.Empty);
             var latency = parseResult.GetRequiredValue<int>("--latency");
 
             using var cancellationTokenSource = new CancellationTokenSource();

@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using BraidKit.Core.Helpers;
+using System.Runtime.InteropServices;
+using Vortice.Mathematics;
 
 namespace BraidKit.Core;
 
@@ -12,8 +14,8 @@ public struct RenderSettings()
     public const bool DefaultRenderBorder = false;
     public const float DefaultLineWidth = 1f;
     public const float DefaultFontSize = 15f;
-    public const uint DefaultFontColor = 0xffffff00; // RGBA (AABBGGRR because of little-endian)
-    public const uint DefaultLineColor = 0x00000000; // RGBA (AABBGGRR because of little-endian)
+    public static readonly Color DefaultFontColor = ColorHelper.Cyan;
+    public static readonly Color DefaultLineColor = ColorHelper.Empty;
 
     [FieldOffset(0)] public bool RenderEntityBounds = DefaultRenderEntityBounds;
     [FieldOffset(4)] public bool RenderEntityCenters = DefaultRenderEntityCenters;
@@ -22,8 +24,8 @@ public struct RenderSettings()
     [FieldOffset(16)] public bool RenderBorder = DefaultRenderBorder;
     [FieldOffset(20)] public float LineWidth = DefaultLineWidth;
     [FieldOffset(24)] public float FontSize = DefaultFontSize;
-    [FieldOffset(28)] public uint FontColor = DefaultFontColor;
-    [FieldOffset(32)] public uint LineColor = DefaultLineColor;
+    [FieldOffset(28)] public Color FontColor = DefaultFontColor;
+    [FieldOffset(32)] public Color LineColor = DefaultLineColor;
 
     public readonly bool IsRenderingActive() => RenderEntityBounds || RenderEntityCenters || RenderTimVelocity != TextPosition.None || RenderBorder;
     public readonly bool IsLineColorActive() => LineColor != DefaultLineColor;

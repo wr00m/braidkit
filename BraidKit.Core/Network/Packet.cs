@@ -1,7 +1,8 @@
-﻿using LiteNetLib.Utils;
+﻿using BraidKit.Core.Helpers;
+using LiteNetLib.Utils;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using System.Numerics;
+using Vortice.Mathematics;
 
 namespace BraidKit.Core.Network;
 
@@ -34,7 +35,7 @@ public static class PacketConstants
     public const int SpeedrunFrameIndexNotStarted = -1; // If not in speedrun mode
 }
 
-internal record PlayerJoinRequestPacket(string PlayerName, PlayerColor PlayerColor, byte ApiVersion = ApiVersion.Current)
+internal record PlayerJoinRequestPacket(string PlayerName, Color PlayerColor, byte ApiVersion = ApiVersion.Current)
     : IPacket, IPacketable<PlayerJoinRequestPacket>
 {
     public PacketType PacketType => PacketType.PlayerJoinRequest;
@@ -55,11 +56,11 @@ internal record PlayerJoinRequestPacket(string PlayerName, PlayerColor PlayerCol
         return new(
             ApiVersion: reader.GetByte(),
             PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
-            PlayerColor: reader.GetByte());
+            PlayerColor: reader.GetColor());
     }
 }
 
-internal record PlayerJoinResponsePacket(PlayerId PlayerId, string PlayerName, PlayerColor PlayerColor)
+internal record PlayerJoinResponsePacket(PlayerId PlayerId, string PlayerName, Color PlayerColor)
     : IPacket, IPacketable<PlayerJoinResponsePacket>
 {
     public PacketType PacketType => PacketType.PlayerJoinResponse;
@@ -80,7 +81,7 @@ internal record PlayerJoinResponsePacket(PlayerId PlayerId, string PlayerName, P
         return new(
             PlayerId: reader.GetByte(),
             PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
-            PlayerColor: reader.GetByte());
+            PlayerColor: reader.GetColor());
     }
 }
 
@@ -110,7 +111,7 @@ internal record PlayerStateUpdatePacket(int? SpeedrunFrameIndex, byte PuzzlePiec
 }
 
 // TODO: Player name and color shouldn't be included with every update
-internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName, PlayerColor PlayerColor, int? SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
+internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName, Color PlayerColor, int? SpeedrunFrameIndex, byte PuzzlePieces, EntitySnapshot EntitySnapshot)
     : IPacket, IPacketable<PlayerStateBroadcastPacket>
 {
     public PacketType PacketType => PacketType.PlayerStateBroadcast;
@@ -134,7 +135,7 @@ internal record PlayerStateBroadcastPacket(PlayerId PlayerId, string PlayerName,
         return new(
             PlayerId: reader.GetByte(),
             PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
-            PlayerColor: reader.GetByte(),
+            PlayerColor: reader.GetColor(),
             SpeedrunFrameIndex: reader.GetNullableInt(PacketConstants.SpeedrunFrameIndexNotStarted),
             PuzzlePieces: reader.GetByte(),
             EntitySnapshot: EntitySnapshot.Deserialize(reader));
@@ -161,7 +162,7 @@ internal record PlayerChatMessagePacket(string Message)
     }
 }
 
-internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, PlayerColor Color)
+internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, Color Color)
     : IPacket, IPacketable<PlayerChatMessageBroadcastPacket>
 {
     public PacketType PacketType => PacketType.PlayerChatMessageBroadcast;
@@ -171,7 +172,7 @@ internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, 
         writer.Put((byte)PacketType);
         writer.Put(Sender, PacketConstants.PlayerNameMaxLength);
         writer.Put(Message, PacketConstants.ChatMessageMaxLength);
-        writer.Put((byte)Color.KnownColor);
+        writer.Put(Color);
     }
 
     public static PlayerChatMessageBroadcastPacket Deserialize(NetDataReader reader)
@@ -182,10 +183,10 @@ internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, 
         return new(
             Sender: reader.GetString(PacketConstants.PlayerNameMaxLength),
             Message: reader.GetString(PacketConstants.ChatMessageMaxLength),
-            Color: (KnownColor)reader.GetByte());
+            Color: reader.GetColor());
     }
 
-    public static PlayerChatMessageBroadcastPacket ServerMessage(string message) => new("Server", message, KnownColor.White);
+    public static PlayerChatMessageBroadcastPacket ServerMessage(string message) => new("Server", message, ColorHelper.White);
 }
 
 internal record StartSpeedrunBroadcastPacket()
@@ -255,6 +256,21 @@ internal static class PacketParser
     {
         var result = reader.GetInt();
         return result != sentinelValue ? result : null;
+    }
+
+    public static void Put(this NetDataWriter writer, Color color, bool alpha = false)
+    {
+        writer.Put(color.R);
+        writer.Put(color.G);
+        writer.Put(color.B);
+
+        if (alpha)
+            writer.Put(color.A);
+    }
+
+    public static Color GetColor(this NetDataReader reader, bool alpha = false)
+    {
+        return new(reader.GetByte(), reader.GetByte(), reader.GetByte(), alpha ? reader.GetByte() : (byte)255);
     }
 }
 

@@ -123,7 +123,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         if (!_braidGame.InPuzzleAssemblyScreen)
             foreach (var visibleOtherPlayer in visibleOtherPlayers)
             {
-                var fadedColor = new Color4(visibleOtherPlayer.Color.ToVector4() * _braidGame.EntityVertexColorScale);
+                var fadedColor = Color4.Multiply(visibleOtherPlayer.Color, new Color4(_braidGame.EntityVertexColorScale));
                 var playerScreenPos = Vector2.Transform(visibleOtherPlayer.EntitySnapshot.Position, worldToScreenMtx);
 
                 _textRenderer.RenderText(
@@ -155,11 +155,11 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 HAlign.Left,
                 VAlign.Top,
                 RenderSettings.FontSize,
-                new(player.Color.ToRgba()));
+                player.Color);
         }
     }
 
-    public void RenderChat(IReadOnlyList<ChatMessage> chatLog, bool inputActive, string? chatInput, PlayerColor inputColor)
+    public void RenderChat(IReadOnlyList<ChatMessage> chatLog, bool inputActive, string? chatInput, Color inputColor)
     {
         if (_braidGame.InMainMenu)
             return;
@@ -198,7 +198,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 HAlign.Left,
                 VAlign.Bottom,
                 RenderSettings.FontSize,
-                new(chatMessage.Color.ToRgba()));
+                chatMessage.Color);
 
         // Render new message input
         if (inputActive)
@@ -209,7 +209,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 HAlign.Left,
                 VAlign.Bottom,
                 RenderSettings.FontSize,
-                new(inputColor.ToRgba()));
+                inputColor);
     }
 
     private void GetMatrices(out Matrix4x4 viewProjMtx, out Matrix4x4 screenMtx, out Matrix4x4 worldToScreenMtx)

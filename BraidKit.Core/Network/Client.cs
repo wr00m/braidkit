@@ -1,7 +1,8 @@
-﻿using LiteNetLib;
+﻿using BraidKit.Core.Helpers;
+using LiteNetLib;
 using LiteNetLib.Utils;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
+using Vortice.Mathematics;
 
 namespace BraidKit.Core.Network;
 
@@ -91,9 +92,9 @@ public sealed class Client : IDisposable
 
     public List<ChatMessage> GetChat() => [.. _chatLog];
 
-    public PlayerColor GetOwnPlayerColor() => OwnPlayer?.Color ?? KnownColor.White;
+    public Color GetOwnPlayerColor() => OwnPlayer?.Color ?? ColorHelper.White;
 
-    public async Task<bool> ConnectToServer(string serverHostnameOrIpAddress, int serverPort, string playerName = "", PlayerColor playerColor = default, CancellationToken ct = default)
+    public async Task<bool> ConnectToServer(string serverHostnameOrIpAddress, int serverPort, string playerName = "", Color playerColor = default, CancellationToken ct = default)
     {
         if (IsConnected)
             return true;
