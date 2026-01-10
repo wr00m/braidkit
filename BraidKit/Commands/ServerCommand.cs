@@ -35,7 +35,7 @@ internal static partial class Commands
             new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => _officialServerAddress },
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
             new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
-            new Option<string>("--color", "-c") { Description = "Player color in RGB(A) hex format", DefaultValueFactory = _ => ColorHelper.Empty.ToHex() },
+            new Option<string>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => ColorHelper.Empty.ToHex() },
         }
         .SetBraidGameAction((braidGame, parseResult) =>
         {
@@ -72,7 +72,7 @@ internal static partial class Commands
             new Option<string>("--address", "-a") { Description = "Server IP address or hostname", DefaultValueFactory = _ => _localhost },
             new Option<int>("--port", "-p") { Description = "Server port", DefaultValueFactory = _ => _defaultPort },
             new Option<string>("--name", "-n") { Description = "Player name", DefaultValueFactory = _ => "" },
-            new Option<string>("--color", "-c") { Description = "Player color in RGB(A) hex format", DefaultValueFactory = _ => ColorHelper.Empty.ToHex() },
+            new Option<string>("--color", "-c") { Description = "Player color", DefaultValueFactory = _ => ColorHelper.Empty.ToHex() },
             new Option<int>("--latency", "-l") { Description = "Simulated latency cap in milliseconds", DefaultValueFactory = _ => 0 },
         }
         .SetHidden(true)

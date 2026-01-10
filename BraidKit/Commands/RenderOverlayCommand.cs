@@ -16,8 +16,8 @@ internal static partial class Commands
             new Option<bool>("--all-entities", "-a") { Description = "Show bounds/centers for all entities", DefaultValueFactory = _ => RenderSettings.DefaultRenderAllEntities },
             new Option<float>("--line-width", "-l") { Description = "Geometry outline width", DefaultValueFactory = _ => RenderSettings.DefaultLineWidth },
             new Option<float>("--font-size", "-s") { Description = "Font size", DefaultValueFactory = _ => RenderSettings.DefaultFontSize },
-            new Option<string>("--font-color", "-f") { Description = "Font color in RGBA hex format", DefaultValueFactory = _ => RenderSettings.DefaultFontColor.ToHex() },
-            new Option<string>("--line-color", "-n") { Description = "Geometry line color in RGBA hex format", DefaultValueFactory = _ => RenderSettings.DefaultLineColor.ToHex() },
+            new Option<string>("--font-color", "-f") { Description = "Font color", DefaultValueFactory = _ => RenderSettings.DefaultFontColor.ToHex() },
+            new Option<string>("--line-color", "-n") { Description = "Geometry line color", DefaultValueFactory = _ => RenderSettings.DefaultLineColor.ToHex() },
             RenderOverlayResetCommand,
         }
         .SetBraidGameAction((braidGame, parseResult) =>
@@ -50,5 +50,5 @@ internal static partial class Commands
         => Console.WriteLine($"Debug overlay rendering {(isRendering ? "on" : "off")}");
 
     private static Color GetColor(this ParseResult parseResult, string name, Color fallbackColor)
-        => ColorHelper.TryParseHex(parseResult.GetValue<string>(name) ?? "", out var parsedColor) ? parsedColor : fallbackColor;
+        => ColorHelper.TryParseColor(parseResult.GetValue<string>(name) ?? "", out var parsedColor) ? parsedColor : fallbackColor;
 }
