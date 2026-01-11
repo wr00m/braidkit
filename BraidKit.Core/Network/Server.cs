@@ -135,7 +135,7 @@ public sealed class Server : IDisposable
                     return false;
                 }
 
-                var playerColor = !packet.PlayerColor.IsSameColor(ColorHelper.Empty, ignoreAlpha: true) ? packet.PlayerColor : GetRandomPlayerColor();
+                var playerColor = IsValidPlayerColor(packet.PlayerColor) ? packet.PlayerColor : GetRandomPlayerColor();
 
                 player = new()
                 {
@@ -208,26 +208,48 @@ public sealed class Server : IDisposable
 
     private bool HandleChatMessageCommand(string command, NetPeer sender)
     {
-        switch (command)
+        if (string.IsNullOrWhiteSpace(command))
+            return false;
+
+        var parts = command.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var commandName = parts[0];
+        var commandArgs = parts.Length > 1 ? parts[1] : null;
+
+        switch (commandName)
         {
             case "!start":
-                if (_connectedPlayers.Any(x => x.Value.IsInSpeedrunMode))
+                if (commandArgs is null)
                 {
-                    var packet = PlayerChatMessageBroadcastPacket.ServerMessage("Cannot start synchronized speedrun because a player is already in speedrun mode");
-                    var writer = new NetDataWriter();
-                    packet.Serialize(writer);
-                    _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
-                }
-                else
-                {
-                    var packet = new StartSpeedrunBroadcastPacket();
-                    var writer = new NetDataWriter();
-                    packet.Serialize(writer);
-                    _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                    if (_connectedPlayers.Any(x => x.Value.IsInSpeedrunMode))
+                    {
+                        var packet = PlayerChatMessageBroadcastPacket.ServerMessage("Cannot start synchronized speedrun because a player is already in speedrun mode");
+                        var writer = new NetDataWriter();
+                        packet.Serialize(writer);
+                        _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                    }
+                    else
+                    {
+                        var packet = new StartSpeedrunBroadcastPacket();
+                        var writer = new NetDataWriter();
+                        packet.Serialize(writer);
+                        _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                    }
                 }
                 return true;
             case "!disconnect":
-                sender.Disconnect();
+                if (commandArgs is null)
+                    sender.Disconnect();
+                return true;
+            case "!color":
+                var playerColor = commandArgs is null ? GetRandomPlayerColor() : ColorHelper.TryParseColor(commandArgs, out var c) ? c : ColorHelper.Empty;
+                if (IsValidPlayerColor(playerColor) && _connectedPlayers.TryGetValue(sender.Id, out var player))
+                {
+                    player.Color = playerColor;
+                    var packet = new PlayerNameAndColorBroadcastPacket(player.PlayerId, player.Name, player.Color);
+                    var writer = new NetDataWriter();
+                    packet.Serialize(writer);
+                    _netManager.SendToAll(writer, DeliveryMethod.ReliableSequenced);
+                }
                 return true;
             default:
                 return false;
@@ -262,4 +284,6 @@ public sealed class Server : IDisposable
         var lightness = Random.Shared.GetRandomFloat(.7f, .9f);
         return Color4.FromHSL(hue, saturation, lightness);
     }
+
+    private static bool IsValidPlayerColor(Color color) => !color.IsSameColor(ColorHelper.Empty, ignoreAlpha: true);
 }

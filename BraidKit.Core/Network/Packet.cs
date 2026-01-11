@@ -10,6 +10,7 @@ internal enum PacketType : byte
 {
     PlayerJoinRequest = 1,
     PlayerJoinResponse,
+    PlayerNameAndColorBroadcast,
     PlayerStateUpdate,
     PlayerStateBroadcast,
     PlayerChatMessage,
@@ -76,6 +77,31 @@ internal record PlayerJoinResponsePacket(PlayerId PlayerId, string PlayerName, C
     public static PlayerJoinResponsePacket Deserialize(NetDataReader reader)
     {
         if (!reader.ReadPacketType(PacketType.PlayerJoinResponse))
+            return default!;
+
+        return new(
+            PlayerId: reader.GetByte(),
+            PlayerName: reader.GetString(PacketConstants.PlayerNameMaxLength),
+            PlayerColor: reader.GetColor());
+    }
+}
+
+internal record PlayerNameAndColorBroadcastPacket(PlayerId PlayerId, string PlayerName, Color PlayerColor)
+    : IPacket, IPacketable<PlayerNameAndColorBroadcastPacket>
+{
+    public PacketType PacketType => PacketType.PlayerNameAndColorBroadcast;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(PlayerId);
+        writer.Put(PlayerName, PacketConstants.PlayerNameMaxLength);
+        writer.Put(PlayerColor);
+    }
+
+    public static PlayerNameAndColorBroadcastPacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.PlayerNameAndColorBroadcast))
             return default!;
 
         return new(
@@ -229,6 +255,7 @@ internal static class PacketParser
         {
             PacketType.PlayerJoinRequest => PlayerJoinRequestPacket.Deserialize(reader),
             PacketType.PlayerJoinResponse => PlayerJoinResponsePacket.Deserialize(reader),
+            PacketType.PlayerNameAndColorBroadcast => PlayerNameAndColorBroadcastPacket.Deserialize(reader),
             PacketType.PlayerStateUpdate => PlayerStateUpdatePacket.Deserialize(reader),
             PacketType.PlayerStateBroadcast => PlayerStateBroadcastPacket.Deserialize(reader),
             PacketType.PlayerChatMessage => PlayerChatMessagePacket.Deserialize(reader),

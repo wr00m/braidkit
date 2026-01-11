@@ -186,6 +186,9 @@ public sealed class Client : IDisposable
             case PlayerJoinResponsePacket playerJoinResponsePacket:
                 HandlePlayerJoinResponse(playerJoinResponsePacket, sender);
                 break;
+            case PlayerNameAndColorBroadcastPacket playerNameAndColorBroadcastPacket:
+                HandlePlayerNameAndColorBroadcast(playerNameAndColorBroadcastPacket);
+                break;
             case PlayerStateBroadcastPacket playerStateBroadcastPacket:
                 HandlePlayerStateBroadcast(playerStateBroadcastPacket);
                 break;
@@ -217,6 +220,20 @@ public sealed class Client : IDisposable
         };
 
         Console.WriteLine("Connected to server");
+    }
+
+    private void HandlePlayerNameAndColorBroadcast(PlayerNameAndColorBroadcastPacket packet)
+    {
+        if (packet.PlayerId == PlayerId.Unknown)
+            return;
+
+        var player = packet.PlayerId == OwnPlayer?.PlayerId ? OwnPlayer : _otherPlayers.TryGetValue(packet.PlayerId, out var otherPlayer) ? otherPlayer : null;
+        if (player is null)
+            return;
+
+        player.Name = packet.PlayerName;
+        player.Color = packet.PlayerColor;
+        player.Updated = DateTime.Now;
     }
 
     private void HandlePlayerStateBroadcast(PlayerStateBroadcastPacket packet)
