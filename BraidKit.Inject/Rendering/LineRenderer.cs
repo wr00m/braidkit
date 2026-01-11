@@ -45,22 +45,22 @@ internal class LineRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderCircle(Vector2 center, float radius, Color4 color, float lineWidth)
+    public void RenderCircle(Vector2 center, float radius, Color color, float lineWidth)
     {
         RenderLine(_circleOutline, center, new(radius), color, lineWidth);
     }
 
-    public void RenderRectangle(Vector2 center, float width, float height, Color4 color, float lineWidth, float angleDeg)
+    public void RenderRectangle(Vector2 center, float width, float height, Color color, float lineWidth, float angleDeg)
     {
         RenderLine(_rectangleOutline, center, new(width, height), color, lineWidth, angleDeg);
     }
 
-    public void RenderPlusSign(Vector2 center, float radius, Color4 color, float lineWidth, float angleDeg)
+    public void RenderPlusSign(Vector2 center, float radius, Color color, float lineWidth, float angleDeg)
     {
         RenderLine(_plusSignOutline, center, new(radius), color, lineWidth, angleDeg);
     }
 
-    private void RenderLine(Primitives<LineVertex> primitives, Vector2 center, Vector2 scale, Color4 color, float lineWidth, float angleDeg = 0f)
+    private void RenderLine(Primitives<LineVertex> primitives, Vector2 center, Vector2 scale, Color color, float lineWidth, float angleDeg = 0f)
     {
         // Set world matrix
         var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateRotationZ(MathHelper.DegreesToRadians(angleDeg)) * Matrix4x4.CreateTranslation(center.X, center.Y, 0f));

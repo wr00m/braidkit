@@ -1,4 +1,9 @@
-﻿namespace BraidKit.Inject.Rendering;
+﻿using BraidKit.Core.Helpers;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using Vortice.Mathematics;
+
+namespace BraidKit.Inject.Rendering;
 
 internal static class Geometry
 {
@@ -53,14 +58,87 @@ internal static class Geometry
         return quads.QuadsToTriangles();
     }
 
-    public static List<TexturedVertex> GetRectangleTriangleList(float xMin, float xMax, float yMin, float yMax) => QuadsToTriangles<TexturedVertex>([
-        new(xMin, yMin, 0f, 0f),
-        new(xMin, yMax, 0f, 1f),
-        new(xMax, yMax, 1f, 1f),
-        new(xMax, yMin, 1f, 0f),
+    public static List<TexturedVertex> GetRectangleTriangleList(Rect rect) => QuadsToTriangles<TexturedVertex>([
+        new(rect.Left, rect.Bottom, 0f, 0f),
+        new(rect.Left, rect.Top, 0f, 1f),
+        new(rect.Right, rect.Top, 1f, 1f),
+        new(rect.Right, rect.Bottom, 1f, 0f),
     ]);
 
-    private static List<TVertex> QuadsToTriangles<TVertex>(this List<TVertex> verts) where TVertex : IVertex
+    public static List<Vector2> GetRoundedRectangleTriangleList(Rect rect, float cornerRadius, int cornerSegments)
+    {
+        var result = new List<Vector2>();
+
+        // Shrink corner radius if necessary to fit rectangle
+        cornerRadius = MathF.Min(cornerRadius, MathF.Min(rect.Width * .5f, rect.Height * .5f));
+
+        // Shrink rectangle to accommodate the radius
+        rect.Inflate(-cornerRadius, -cornerRadius);
+        List<Vector2> corners = [rect.BottomLeft, rect.TopLeft, rect.TopRight, rect.BottomRight];
+
+        // Inner rectangle
+        result.AddRange(QuadsToTriangles(corners));
+
+        // Corners and sides
+        for (int i = 0; i < 4; i++)
+        {
+            var corner = corners[i];
+            var nextCorner = corners[(i + 1) % 4];
+
+            var side = nextCorner - corner;
+            var sideDir = side.GetNormalized();
+            var sideTangent = sideDir.GetPerpendicularCW();
+            var sideHeightOffset = sideTangent * cornerRadius;
+
+            // Side outer rectangle
+            result.AddRange(QuadsToTriangles([corner, corner + sideHeightOffset, nextCorner + sideHeightOffset, nextCorner]));
+
+            // Corner arc
+            var fromRads = sideTangent.GetRadians();
+            var toRads = fromRads - MathF.PI * .5f;
+            result.AddRange(GetArcTriangleFan(corner, cornerRadius, fromRads, toRads, cornerSegments).TriangleFanToTriangles());
+        }
+
+        return result;
+    }
+
+    public static List<Vector2> GetArcTriangleFan(Vector2 center, float radius, float fromRads, float toRads, int segments)
+    {
+        // Build triangle fan from center
+        List<Vector2> triFan = [center];
+
+        for (int i = 0; i <= segments; i++)
+        {
+            var t = i / (float)segments;
+            var rads = Lerp(fromRads, toRads, t);
+            var cos = MathF.Cos(rads);
+            var sin = MathF.Sin(rads);
+            triFan.Add(center + new Vector2(cos * radius, sin * radius));
+        }
+
+        return triFan;
+    }
+
+    public static List<TexturedVertex> GetSpeechBubbleTriangleList(Rect rect, Vector2 tailSize, float cornerRadius, int cornerSegments = 4)
+    {
+        // Bubble part (containing the text)
+        var tris = GetRoundedRectangleTriangleList(rect, cornerRadius, cornerSegments);
+
+        // Tail part (pointing to the character speaking)
+        if (tailSize != Vector2.Zero)
+        {
+            tailSize = new(MathF.Min(rect.Width, tailSize.X), tailSize.Y); // Tail can't be wider than bubble
+            tris.AddRange([
+                new(rect.Center.X - tailSize.X * .5f, rect.Bottom),
+                new(rect.Center.X + tailSize.X * .5f, rect.Bottom),
+                new(rect.Center.X, rect.Bottom + tailSize.Y),
+            ]);
+        }
+
+        return [.. tris.Select(x => new TexturedVertex(x.X, x.Y, 0f, 0f))];
+    }
+
+    private static List<TVertex> QuadsToTriangles<TVertex>(this List<TVertex> verts)
     {
         if (verts.Count % 4 != 0)
             throw new ArgumentException("Invalid quad vertex list");
@@ -73,4 +151,18 @@ internal static class Geometry
         }
         return result;
     }
+
+    private static List<TVertex> TriangleFanToTriangles<TVertex>(this List<TVertex> verts)
+    {
+        if (verts.Count < 3)
+            throw new ArgumentException("Invalid triangle fan vertex list");
+
+        var result = new List<TVertex>(verts.Count - 2);
+        for (int i = 2; i < verts.Count; i++)
+            result.AddRange([verts[0], verts[i - 1], verts[i]]);
+        return result;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float Lerp(float a, float b, float t) => a + (b - a) * t;
 }

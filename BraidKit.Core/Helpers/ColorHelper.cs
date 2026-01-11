@@ -1,5 +1,6 @@
 ﻿using System.Buffers.Binary;
 using System.Globalization;
+using Vortice.Mathematics;
 using Color = Vortice.Mathematics.Color;
 using SDColor = System.Drawing.Color;
 
@@ -16,6 +17,8 @@ public static class ColorHelper
 
     public static string ToHex(this Color x, string prefix = "")
         => $"{prefix}{x.R:x2}{x.G:x2}{x.B:x2}{x.A:x2}";
+
+    public static Color ToColor(this Color4 x) => x.ToRgba();
 
     public static bool TryParseColor(string str, out Color result) => TryParseColorName(str, out result) || TryParseColorHex(str, out result);
 

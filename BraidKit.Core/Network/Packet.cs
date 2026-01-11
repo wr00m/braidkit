@@ -188,7 +188,7 @@ internal record PlayerChatMessagePacket(string Message)
     }
 }
 
-internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, Color Color)
+internal record PlayerChatMessageBroadcastPacket(string Sender, PlayerId SenderPlayerId, string Message, Color Color)
     : IPacket, IPacketable<PlayerChatMessageBroadcastPacket>
 {
     public PacketType PacketType => PacketType.PlayerChatMessageBroadcast;
@@ -197,6 +197,7 @@ internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, 
     {
         writer.Put((byte)PacketType);
         writer.Put(Sender, PacketConstants.PlayerNameMaxLength);
+        writer.Put(SenderPlayerId);
         writer.Put(Message, PacketConstants.ChatMessageMaxLength);
         writer.Put(Color);
     }
@@ -208,11 +209,12 @@ internal record PlayerChatMessageBroadcastPacket(string Sender, string Message, 
 
         return new(
             Sender: reader.GetString(PacketConstants.PlayerNameMaxLength),
+            SenderPlayerId: reader.GetByte(),
             Message: reader.GetString(PacketConstants.ChatMessageMaxLength),
             Color: reader.GetColor());
     }
 
-    public static PlayerChatMessageBroadcastPacket ServerMessage(string message) => new("Server", message, ColorHelper.White);
+    public static PlayerChatMessageBroadcastPacket ServerMessage(string message) => new("Server", PlayerId.Unknown, message, ColorHelper.White);
 }
 
 internal record StartSpeedrunBroadcastPacket()

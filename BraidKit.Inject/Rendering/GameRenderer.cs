@@ -1,9 +1,11 @@
 ﻿using BraidKit.Core;
 using BraidKit.Core.Game;
+using BraidKit.Core.Helpers;
 using BraidKit.Core.Network;
 using System.Numerics;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
+using Rect = Vortice.Mathematics.Rect;
 
 namespace BraidKit.Inject.Rendering;
 
@@ -101,40 +103,82 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 alignX,
                 alignY,
                 RenderSettings.FontSize,
-                new(RenderSettings.FontColor));
+                RenderSettings.FontColor);
         }
     }
 
-    public void RenderPlayerLabelsAndLeaderboard(List<PlayerSummary> players)
+    public void RenderPlayerLabelsAndLeaderboard(List<PlayerSummary> players, IReadOnlyList<ChatMessage> chatLog)
     {
         if (_braidGame.InMainMenu)
             return;
-
-        var world = _braidGame.TimWorld.Value;
-        var level = _braidGame.TimLevel.Value;
-        var visibleOtherPlayers = players.Where(x => !x.IsOwnPlayer && x.EntitySnapshot.World == world && x.EntitySnapshot.Level == level).ToList();
 
         GetMatrices(out var _, out var screenMtx, out var worldToScreenMtx);
 
         _textRenderer.Activate();
         _textRenderer.SetViewProjectionMatrix(screenMtx);
 
-        // Render player names below sprites
+        // Render visible players
         if (!_braidGame.InPuzzleAssemblyScreen)
-            foreach (var visibleOtherPlayer in visibleOtherPlayers)
-            {
-                var fadedColor = Color4.Multiply(visibleOtherPlayer.Color, new Color4(_braidGame.EntityVertexColorScale));
-                var playerScreenPos = Vector2.Transform(visibleOtherPlayer.EntitySnapshot.Position, worldToScreenMtx);
+        {
+            var world = _braidGame.TimWorld.Value;
+            var level = _braidGame.TimLevel.Value;
+            var visiblePlayers = players.Where(x => x.EntitySnapshot.World == world && x.EntitySnapshot.Level == level).ToList();
 
-                _textRenderer.RenderText(
-                    visibleOtherPlayer.Name,
-                    playerScreenPos.X,
-                    playerScreenPos.Y,
-                    HAlign.Center,
-                    VAlign.Top,
-                    RenderSettings.FontSize,
-                    fadedColor);
+            if (visiblePlayers.Count > 0)
+            {
+                var chatLogByPlayerId = chatLog.Where(x => !x.Stale).GroupBy(x => x.SenderPlayerId).ToDictionary(x => x.Key, x => x.OrderByDescending(x => x.Received).Take(5).ToList());
+
+                foreach (var visiblePlayer in visiblePlayers)
+                {
+                    var fadedColor = Color4.Multiply(visiblePlayer.Color, new Color4(_braidGame.EntityVertexColorScale)).ToColor();
+                    var playerScreenPos = Vector2.Transform(visiblePlayer.EntitySnapshot.Position, worldToScreenMtx);
+
+                    // Render player name below sprite
+                    if (!visiblePlayer.IsOwnPlayer)
+                        _textRenderer.RenderText(
+                            visiblePlayer.Name,
+                            playerScreenPos.X,
+                            playerScreenPos.Y,
+                            HAlign.Center,
+                            VAlign.Top,
+                            RenderSettings.FontSize,
+                            fadedColor);
+
+                    // Render speech bubble above player sprite
+                    if (chatLogByPlayerId.TryGetValue(visiblePlayer.PlayerId, out var playerChatLog))
+                    {
+                        const float bubblePadding = 15f;
+                        var bubbleBgColor = new Color(.0f, .0f, .0f, .5f);
+                        var bubbleBottomCenter = playerScreenPos + new Vector2(0f, -118f); // Screen coordinates are "upside down"
+
+                        foreach (var (playerChatEntry, i) in playerChatLog.Select((x, i) => (x, i)))
+                        {
+                            var bubbleText = playerChatEntry.Message; // TODO: Break long lines!!
+                            var bubbleSize = _textRenderer.GetTextSize(bubbleText, RenderSettings.FontSize) + new Vector2(bubblePadding * 2f);
+                            var bubbleRect = new Rect(bubbleSize) { BottomCenter = bubbleBottomCenter };
+                            var bubbleTailSize = i == 0 ? new Vector2(10f, 15f) : Vector2.Zero;
+                            var bubbleTriangles = Geometry.GetSpeechBubbleTriangleList(bubbleRect, bubbleTailSize, bubblePadding);
+                            var bubblePrimitives = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, bubbleTriangles, useVertexBuffer: false);
+
+                            _simpleRenderer.Activate();
+                            _simpleRenderer.Render(bubblePrimitives, bubbleBgColor);
+
+                            _textRenderer.Activate();
+                            _textRenderer.RenderText(
+                                bubbleText,
+                                bubbleRect.Center.X,
+                                bubbleRect.Center.Y,
+                                HAlign.Center,
+                                VAlign.Middle,
+                                RenderSettings.FontSize,
+                                fadedColor);
+
+                            bubbleBottomCenter.Y -= bubbleRect.Height;
+                        }
+                    }
+                }
             }
+        }
 
         // Render leaderboard
         foreach (var (player, i) in players.OrderByLeaderboardPosition().Select((x, i) => (x, i)))
@@ -181,9 +225,11 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             _simpleRenderer.SetViewProjectionMatrix(screenMtx);
 
             var bgBottom = bottom + RenderSettings.FontSize * lineHeight * .5f;
-            var bgTop = bgBottom - ((prevMessages.Count > 0 ? prevMessages.Count + 1 : 0) + 1.5f) * RenderSettings.FontSize * lineHeight;
-            var bgColor = new Color4(.0f, .0f, .0f, .5f);
-            _simpleRenderer.RenderRectangle(0f, _braidGame.ScreenWidth, bgBottom, bgTop, bgColor);
+            var bgHeight = ((prevMessages.Count > 0 ? prevMessages.Count + 1 : 0) + 1.5f) * RenderSettings.FontSize * lineHeight;
+            var bgColor = new Color(.0f, .0f, .0f, .5f);
+            var bgRect = new Rect(_braidGame.ScreenWidth, bgHeight) { Bottom = bgBottom };
+            var bgRectPrimitives = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, Geometry.GetRectangleTriangleList(bgRect), useVertexBuffer: false);
+            _simpleRenderer.Render(bgRectPrimitives, bgColor);
         }
 
         _textRenderer.Activate();
@@ -258,9 +304,9 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         _lineRenderer.RenderPlusSign(entity.Center, 8f, color.Value, RenderSettings.LineWidth, entity.Theta);
     }
 
-    private Color4? GetEntityLineColor(Entity entity)
+    private Color? GetEntityLineColor(Entity entity)
     {
-        Color4? color = entity.EntityType.Value switch
+        Color? color = entity.EntityType.Value switch
         {
             EntityType.Guy => new(1f, 1f, 1f, 1f),
             EntityType.Claw => new(0f, 1f, 0f, 1f),
@@ -290,7 +336,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         };
 
         if (color != null && RenderSettings.IsLineColorActive())
-            color = new(RenderSettings.LineColor);
+            color = RenderSettings.LineColor;
 
         return color;
     }

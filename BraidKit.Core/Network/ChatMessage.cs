@@ -2,7 +2,7 @@
 
 namespace BraidKit.Core.Network;
 
-public record ChatMessage(string Sender, string Message, Color Color)
+public record ChatMessage(string Sender, PlayerId SenderPlayerId, string Message, Color Color)
 {
     public DateTime Received { get; } = DateTime.Now;
     public TimeSpan TimeSinceReceived => DateTime.Now - Received;

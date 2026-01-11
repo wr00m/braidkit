@@ -44,7 +44,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color4 fontColor, bool flipY = false)
+    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color fontColor, bool flipY = false)
     {
         // Set world matrix
         var fontScale = fontSize / _font.Size;
@@ -57,6 +57,15 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         // Get and render triangles
         var triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY), useVertexBuffer: false);
         triangles.Render();
+    }
+
+    public Vector2 GetTextSize(string text, float fontSize)
+    {
+        var fontScale = fontSize / _font.Size;
+        var lines = text.Split(FontTextureInfo.Newline);
+        var width = lines.Select(_font.GetTextWidth).DefaultIfEmpty().Max() * fontScale;
+        var height = lines.Length * fontSize * _lineSpacing * fontScale;
+        return new(width, height);
     }
 
     private List<TexturedVertex> GetTriangleVertices(string text, HAlign alignX, VAlign alignY)

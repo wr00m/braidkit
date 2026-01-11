@@ -1,5 +1,6 @@
 ﻿using BraidKit.Core;
 using BraidKit.Core.Game;
+using BraidKit.Core.Helpers;
 using BraidKit.Core.Network;
 using BraidKit.Inject.Hooks;
 using BraidKit.Inject.Rendering;
@@ -45,14 +46,14 @@ internal static class Bootstrapper
                 if (IsConnected)
                 {
                     _multiplayerClient.SendPlayerStateUpdate(_braidGame.FrameCount);
-                    _gameRenderer.RenderPlayerLabelsAndLeaderboard(_multiplayerClient.GetPlayers());
+                    _gameRenderer.RenderPlayerLabelsAndLeaderboard(_multiplayerClient.GetPlayers(), _multiplayerClient.GetChatLog());
 
                     if (!_braidGame.InMainMenu)
                     {
                         if (_chatInput.Update(out var completedMessage))
                             _multiplayerClient.SendChatMessage(completedMessage);
 
-                        _gameRenderer.RenderChat(_multiplayerClient.GetChat(), _chatInput.IsActive, _chatInput.Message, _multiplayerClient.GetOwnPlayerColor());
+                        _gameRenderer.RenderChat(_multiplayerClient.GetChatLog(), _chatInput.IsActive, _chatInput.Message, _multiplayerClient.GetOwnPlayerColor());
                     }
                 }
             });
@@ -85,10 +86,10 @@ internal static class Bootstrapper
                         if (playersToRender.Count > 0)
                         {
                             var playerColor = new Vector4(1f, 1f, 1f, .5f); // Semi-transparent
-                            var fadedColor = new Color4(playerColor * _braidGame.EntityVertexColorScale);
+                            var fadedColor = new Color4(playerColor * _braidGame.EntityVertexColorScale).ToColor();
 
                             foreach (var player in playersToRender)
-                                if (_braidGame.TryCreateTimGameQuad(player.EntitySnapshot, out var gameQuad, fadedColor.ToRgba()))
+                                if (_braidGame.TryCreateTimGameQuad(player.EntitySnapshot, out var gameQuad, fadedColor))
                                     _braidGame.AddGameQuad(gameQuad);
                         }
                     }

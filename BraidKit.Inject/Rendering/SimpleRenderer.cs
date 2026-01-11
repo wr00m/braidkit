@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using BraidKit.Core.Helpers;
+using System.Numerics;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
 using static BraidKit.Inject.Rendering.ShaderHelper;
@@ -40,17 +41,16 @@ internal class SimpleRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderRectangle(float xMin, float xMax, float yMin, float yMax, Color4 color)
+    public void Render(Primitives<TexturedVertex> primitives, Color? color = null)
     {
         // Set world matrix
         var worldMtx = Matrix4x4.Transpose(Matrix4x4.Identity);
         _device.SetVertexShaderConstant(VS_WorldMtx, worldMtx);
 
-        // Set font color
-        _device.SetPixelShaderConstant(PS_Color, [color.ToVector4()]);
+        // Set color
+        _device.SetPixelShaderConstant(PS_Color, [(color ?? ColorHelper.White).ToVector4()]);
 
-        // Get and render triangles
-        var triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, Geometry.GetRectangleTriangleList(xMin, xMax, yMin, yMax), useVertexBuffer: false);
-        triangles.Render();
+        // Render primitives
+        primitives.Render();
     }
 }

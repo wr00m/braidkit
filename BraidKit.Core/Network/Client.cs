@@ -91,7 +91,7 @@ public sealed class Client : IDisposable
         return result;
     }
 
-    public List<ChatMessage> GetChat() => [.. _chatLog];
+    public IReadOnlyList<ChatMessage> GetChatLog() => _chatLog;
 
     public Color GetOwnPlayerColor() => OwnPlayer?.Color ?? ColorHelper.White;
 
@@ -274,17 +274,17 @@ public sealed class Client : IDisposable
 
     private void HandlePlayerChatMessageBroadcast(PlayerChatMessageBroadcastPacket packet)
     {
-        var message = new ChatMessage(packet.Sender, packet.Message, packet.Color);
+        var message = new ChatMessage(packet.Sender, packet.SenderPlayerId, packet.Message, packet.Color);
         _chatLog.Add(message);
 
-        const int chatLogMaxCount = 10;
+        const int chatLogMaxCount = 100;
         if (_chatLog.Count > chatLogMaxCount)
             _chatLog.RemoveRange(0, _chatLog.Count - chatLogMaxCount);
 
         ChatMessageReceivedEvent?.Invoke(message);
     }
 
-    private void HandleStartSpeedrunBroadcast(StartSpeedrunBroadcastPacket startSpeedrunBroadcastPacket)
+    private void HandleStartSpeedrunBroadcast(StartSpeedrunBroadcastPacket _)
     {
         StartSpeedrunEvent?.Invoke();
     }

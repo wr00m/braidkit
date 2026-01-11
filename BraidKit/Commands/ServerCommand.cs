@@ -113,9 +113,7 @@ internal static partial class Commands
 
             while (client.IsConnected && !cancellationTokenSource.IsCancellationRequested)
             {
-                var oldChatMessages = client.GetChat();
                 client.PollEvents();
-                var newChatMessages = client.GetChat().Except(oldChatMessages);
 
                 var frameIndex = (int)Math.Floor(stopwatch.Elapsed.TotalSeconds * fps);
                 var snapshot = _testAnimation[frameIndex % _testAnimation.Count] with { FrameIndex = frameIndex };

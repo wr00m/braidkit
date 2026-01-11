@@ -198,7 +198,7 @@ public sealed class Server : IDisposable
 
         Console.WriteLine($"Chat message from {player.Name}: {playerChatMessagePacket.Message}");
 
-        var broadcastPacket = new PlayerChatMessageBroadcastPacket(player.Name, playerChatMessagePacket.Message, player.Color);
+        var broadcastPacket = new PlayerChatMessageBroadcastPacket(player.Name, player.PlayerId, playerChatMessagePacket.Message, player.Color);
         var broadcastWriter = new NetDataWriter();
         broadcastPacket.Serialize(broadcastWriter);
         _netManager.SendToAll(broadcastWriter, DeliveryMethod.ReliableOrdered);
