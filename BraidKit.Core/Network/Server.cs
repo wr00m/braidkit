@@ -9,7 +9,7 @@ public sealed class Server : IDisposable
 {
     private readonly NetManager _netManager;
     private readonly Dictionary<int, Player> _connectedPlayers = []; // Key is NetPeer id
-    public List<PlayerSummary> GetPlayers() => [.. _connectedPlayers.Select(x => x.Value.ToSummary(ping: _netManager.GetPeerById(x.Key)!.Ping))];
+    public List<PlayerSummary> GetPlayers() => [.. _connectedPlayers.Select(x => x.Value.ToSummary(ping: _netManager.GetPeerById(x.Key)?.Ping ?? -1))];
     public int Port => _netManager.LocalPort;
 
     public Server(int port)
@@ -58,11 +58,7 @@ public sealed class Server : IDisposable
             }
         };
 
-        listener.PeerDisconnectedEvent += (peer, info) =>
-        {
-            if (_connectedPlayers.Remove(peer.Id, out var disconnectedPlayer))
-                Console.WriteLine($"Player disconnected: {disconnectedPlayer.Name}");
-        };
+        listener.PeerDisconnectedEvent += (peer, info) => RemovePlayer(peer.Id);
 
         listener.NetworkReceiveEvent += (fromPeer, dataReader, deliveryMethod, channel) =>
         {
@@ -86,9 +82,19 @@ public sealed class Server : IDisposable
         {
             _netManager.PollEvents();
 
+            // TODO: Why is this necessary? Sometimes NetPeer seems to disappear without PeerDisconnectedEvent
+            var missingPeerIds = _connectedPlayers.Keys.Where(x => !_netManager.TryGetPeerById(x, out _)).ToList();
+            missingPeerIds.ForEach(RemovePlayer);
+
             // Delay before polling again (longer delay if no players are connected)
             await Task.Delay(_connectedPlayers.Count > 0 ? 5 : 200, ct);
         }
+    }
+
+    private void RemovePlayer(int peerId)
+    {
+        if (_connectedPlayers.Remove(peerId, out var disconnectedPlayer))
+            Console.WriteLine($"Player disconnected: {disconnectedPlayer.Name}");
     }
 
     private void OnPacketReceived(NetDataReader reader, NetPeer sender)
@@ -167,7 +173,7 @@ public sealed class Server : IDisposable
         player.Updated = DateTime.Now;
 
         // Broadcast update to all other clients
-        var otherPlayers = _connectedPlayers.Keys.Except([sender.Id]).Select(x => _netManager.GetPeerById(x)!).ToList();
+        var otherPlayers = _connectedPlayers.Keys.Except([sender.Id]).Select(x => _netManager.GetPeerById(x)).Where(x => x != null).ToList();
         if (otherPlayers.Count > 0)
         {
             var broadcastPacket = new PlayerStateBroadcastPacket(player.PlayerId, player.Name, player.Color, player.SpeedrunFrameIndex, player.PuzzlePieces, player.EntitySnapshot);
