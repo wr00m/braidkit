@@ -135,13 +135,11 @@ public sealed class Server : IDisposable
                     return false;
                 }
 
-                var playerColor = IsValidPlayerColor(packet.PlayerColor) ? packet.PlayerColor : GetRandomPlayerColor();
-
                 player = new()
                 {
                     PlayerId = playerId,
-                    Name = !string.IsNullOrWhiteSpace(packet.PlayerName) ? packet.PlayerName : GetUniquePlayerName(),
-                    Color = playerColor,
+                    Name = IsValidPlayerName(packet.PlayerName) ? packet.PlayerName.Trim() : GetUniquePlayerName(),
+                    Color = IsValidPlayerColor(packet.PlayerColor) ? packet.PlayerColor : GetRandomPlayerColor(),
                     SpeedrunFrameIndex = default,
                     PuzzlePieces = default,
                     EntitySnapshot = EntitySnapshot.Empty,
@@ -214,6 +212,7 @@ public sealed class Server : IDisposable
         var parts = command.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var commandName = parts[0];
         var commandArgs = parts.Length > 1 ? parts[1] : null;
+        var player = _connectedPlayers.TryGetValue(sender.Id, out var p) ? p : null;
 
         switch (commandName)
         {
@@ -240,9 +239,20 @@ public sealed class Server : IDisposable
                 if (commandArgs is null)
                     sender.Disconnect();
                 return true;
+            case "!name":
+                var playerName = (commandArgs?.Trim() ?? "").Truncate(PacketConstants.PlayerNameMaxLength);
+                if (IsValidPlayerName(playerName) && player != null)
+                {
+                    player.Name = playerName;
+                    var packet = new PlayerNameAndColorBroadcastPacket(player.PlayerId, player.Name, player.Color);
+                    var writer = new NetDataWriter();
+                    packet.Serialize(writer);
+                    _netManager.SendToAll(writer, DeliveryMethod.ReliableSequenced);
+                }
+                return true;
             case "!color":
                 var playerColor = commandArgs is null ? GetRandomPlayerColor() : ColorHelper.TryParseColor(commandArgs, out var c) ? c : ColorHelper.Empty;
-                if (IsValidPlayerColor(playerColor) && _connectedPlayers.TryGetValue(sender.Id, out var player))
+                if (IsValidPlayerColor(playerColor) && player != null)
                 {
                     player.Color = playerColor;
                     var packet = new PlayerNameAndColorBroadcastPacket(player.PlayerId, player.Name, player.Color);
@@ -285,5 +295,6 @@ public sealed class Server : IDisposable
         return Color4.FromHSL(hue, saturation, lightness);
     }
 
+    private static bool IsValidPlayerName(string name) => !string.IsNullOrWhiteSpace(name) && name.Length <= PacketConstants.PlayerNameMaxLength;
     private static bool IsValidPlayerColor(Color color) => !color.IsSameColor(ColorHelper.Empty, ignoreAlpha: true);
 }
