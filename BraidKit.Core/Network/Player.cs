@@ -25,7 +25,7 @@ public record PlayerSummary(PlayerId PlayerId, string Name, Color Color, int? Sp
     public string FormatSpeedrunTime()
     {
         if (SpeedrunFrameIndex is null)
-            return "";
+            return "N/A";
 
         const int fps = 60;
         int totalHundredths = ((int)SpeedrunFrameIndex * 100 + fps / 2) / fps; // Round to nearest

@@ -68,26 +68,29 @@ internal static class Bootstrapper
             });
             _stopRenderingEntitiesHook = new(() =>
             {
-                // Render other players
-                // Note: Checking which entity manager is active (hopefully) prevents random Tim clones that otherwise appear on screen sometimes
-                if (IsConnected && _braidGame.IsUsualEntityManagerActive())
+                if (IsConnected)
                 {
-                    // Poll for updated positions before rendering other players
+                    // Poll for updates
                     _multiplayerClient.PollEvents();
 
-                    var playersToRender = _multiplayerClient
-                        .GetPlayers()
-                        .Where(x => !x.IsOwnPlayer && x.EntitySnapshot.World == _braidGame.TimWorld && x.EntitySnapshot.Level == _braidGame.TimLevel)
-                        .ToList();
-
-                    if (playersToRender.Count > 0)
+                    // Note: Checking which entity manager is active (hopefully) prevents random Tim clones that otherwise appear on screen sometimes
+                    if (_braidGame.IsUsualEntityManagerActive())
                     {
-                        var playerColor = new Vector4(1f, 1f, 1f, .5f); // Semi-transparent
-                        var fadedColor = new Color4(playerColor * _braidGame.EntityVertexColorScale);
+                        var playersToRender = _multiplayerClient
+                            .GetPlayers()
+                            .Where(x => !x.IsOwnPlayer && x.EntitySnapshot.World == _braidGame.TimWorld && x.EntitySnapshot.Level == _braidGame.TimLevel)
+                            .ToList();
 
-                        foreach (var player in playersToRender)
-                            if (_braidGame.TryCreateTimGameQuad(player.EntitySnapshot, out var gameQuad, fadedColor.ToRgba()))
-                                _braidGame.AddGameQuad(gameQuad);
+                        // Render other players
+                        if (playersToRender.Count > 0)
+                        {
+                            var playerColor = new Vector4(1f, 1f, 1f, .5f); // Semi-transparent
+                            var fadedColor = new Color4(playerColor * _braidGame.EntityVertexColorScale);
+
+                            foreach (var player in playersToRender)
+                                if (_braidGame.TryCreateTimGameQuad(player.EntitySnapshot, out var gameQuad, fadedColor.ToRgba()))
+                                    _braidGame.AddGameQuad(gameQuad);
+                        }
                     }
                 }
             });
