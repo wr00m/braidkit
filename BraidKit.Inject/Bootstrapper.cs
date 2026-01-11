@@ -21,6 +21,7 @@ internal static class Bootstrapper
     private static readonly EndSceneHook _endSceneHook;
     private static readonly GetGuyAnimationIndexAndDurationHook _getGuyAnimationIndexAndDurationHook;
     private static readonly StopRenderingEntitiesHook _stopRenderingEntitiesHook;
+    private static readonly AddEventHook _addEventHook;
     private static readonly ChatInput _chatInput = new();
     private static Client? _multiplayerClient;
 
@@ -89,6 +90,11 @@ internal static class Bootstrapper
                                 _braidGame.AddGameQuad(gameQuad);
                     }
                 }
+            });
+            _addEventHook = new(() =>
+            {
+                // Prevent game from adding keyboard events when chat input is active
+                return !_chatInput.IsActive;
             });
         }
         catch (Exception ex)
