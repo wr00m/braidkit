@@ -1,6 +1,7 @@
 ﻿using BraidKit.Core.Helpers;
 using System.Numerics;
 using System.Reflection;
+using System.Text;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
 using static BraidKit.Inject.Rendering.ShaderHelper;
@@ -61,10 +62,9 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
 
     public Vector2 GetTextSize(string text, float fontSize)
     {
-        var fontScale = fontSize / _font.Size;
         var lines = text.Split(FontTextureInfo.Newline);
-        var width = lines.Select(_font.GetTextWidth).DefaultIfEmpty().Max() * fontScale;
-        var height = lines.Length * fontSize * _lineSpacing * fontScale;
+        var width = lines.Select(_font.GetTextWidth).DefaultIfEmpty().Max() / _font.Size * fontSize;
+        var height = lines.Length * _lineSpacing * fontSize;
         return new(width, height);
     }
 
@@ -133,6 +133,58 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
             }
         }
 
+        return result;
+    }
+
+    /// <summary>Attempts to fit text to width by adding line breaks</summary>
+    /// <param name="textSize">Actual size of returned text</param>
+    public string LineBreakToFitMaxWidth(string text, float fontSize, float maxWidth, out Vector2 textSize)
+    {
+        // Early exit if text fits as-is
+        textSize = GetTextSize(text, fontSize);
+        if (textSize.X <= maxWidth)
+            return text;
+
+        // Split the text by existing line breaks
+        var inputLines = text.Split(FontTextureInfo.Newline);
+        var outputLines = new List<string>();
+
+        foreach (var inputLine in inputLines)
+        {
+            var words = inputLine.Split(' ');
+            var currentLine = new StringBuilder();
+
+            foreach (var word in words)
+            {
+                var candidate = currentLine.Length == 0 ? word : (currentLine + " " + word);
+
+                // If adding the word doesn't exceed maxWidth, append it
+                if (GetTextSize(candidate, fontSize).X <= maxWidth)
+                {
+                    currentLine.Clear();
+                    currentLine.Append(candidate);
+                }
+                else
+                {
+                    // Add the current line to output if it's not empty
+                    if (currentLine.Length > 0)
+                        outputLines.Add(currentLine.ToString());
+
+                    // Start a new line with the word
+                    // If the word itself is longer than maxWidth, it will still be placed on a single line
+                    // This ensures no infinite loops or crashes occur
+                    currentLine.Clear();
+                    currentLine.Append(word);
+                }
+            }
+
+            // Add the last output line for this input line
+            if (currentLine.Length > 0)
+                outputLines.Add(currentLine.ToString());
+        }
+
+        var result = string.Join(FontTextureInfo.Newline, outputLines);
+        textSize = GetTextSize(result, fontSize);
         return result;
     }
 }

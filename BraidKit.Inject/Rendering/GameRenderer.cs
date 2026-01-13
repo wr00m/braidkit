@@ -148,13 +148,14 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                     if (chatLogByPlayerId.TryGetValue(visiblePlayer.PlayerId, out var playerChatLog))
                     {
                         const float bubblePadding = 15f;
+                        const float bubbleTextMaxWidth = 200f;
                         var bubbleBgColor = new Color(.0f, .0f, .0f, .5f);
                         var bubbleBottomCenter = playerScreenPos + new Vector2(0f, -118f); // Screen coordinates are "upside down"
 
                         foreach (var (playerChatEntry, i) in playerChatLog.Select((x, i) => (x, i)))
                         {
-                            var bubbleText = playerChatEntry.Message; // TODO: Break long lines!!
-                            var bubbleSize = _textRenderer.GetTextSize(bubbleText, RenderSettings.FontSize) + new Vector2(bubblePadding * 2f);
+                            var bubbleText = _textRenderer.LineBreakToFitMaxWidth(playerChatEntry.Message.Trim(), RenderSettings.FontSize, bubbleTextMaxWidth, out var textSize);
+                            var bubbleSize = textSize + new Vector2(bubblePadding * 2f);
                             var bubbleRect = new Rect(bubbleSize) { BottomCenter = bubbleBottomCenter };
                             var bubbleTailSize = i == 0 ? new Vector2(10f, 15f) : Vector2.Zero;
                             var bubbleTriangles = Geometry.GetSpeechBubbleTriangleList(bubbleRect, bubbleTailSize, bubblePadding);
