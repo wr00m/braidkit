@@ -103,7 +103,8 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                 alignX,
                 alignY,
                 RenderSettings.FontSize,
-                RenderSettings.FontColor);
+                RenderSettings.FontColor,
+                lineSpacing: .9f);
         }
     }
 
@@ -147,6 +148,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                     // Render speech bubble above player sprite
                     if (chatLogByPlayerId.TryGetValue(visiblePlayer.PlayerId, out var playerChatLog))
                     {
+                        const float bubbleLineSpacing = 1.5f;
                         const float bubblePadding = 15f;
                         const float bubbleTextMaxWidth = 200f;
                         var bubbleBgColor = new Color(.0f, .0f, .0f, .5f);
@@ -154,7 +156,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
                         foreach (var (playerChatEntry, i) in playerChatLog.Select((x, i) => (x, i)))
                         {
-                            var bubbleText = _textRenderer.LineBreakToFitMaxWidth(playerChatEntry.Message.Trim(), RenderSettings.FontSize, bubbleTextMaxWidth, out var textSize);
+                            var bubbleText = _textRenderer.LineBreakToFitMaxWidth(playerChatEntry.Message.Trim(), RenderSettings.FontSize, bubbleTextMaxWidth, out var textSize, bubbleLineSpacing);
                             var bubbleSize = textSize + new Vector2(bubblePadding * 2f);
                             var bubbleRect = new Rect(bubbleSize) { BottomCenter = bubbleBottomCenter };
                             var bubbleTailSize = i == 0 ? new Vector2(10f, 15f) : Vector2.Zero;
@@ -172,7 +174,8 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                                 HAlign.Center,
                                 VAlign.Middle,
                                 RenderSettings.FontSize,
-                                fadedColor);
+                                fadedColor,
+                                bubbleLineSpacing);
 
                             bubbleBottomCenter.Y -= bubbleRect.Height;
                         }
@@ -185,7 +188,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         foreach (var (player, i) in players.OrderByLeaderboardPosition().Select((x, i) => (x, i)))
         {
             const float margin = 10f;
-            const float lineHeight = 1.5f;
+            const float lineSpacing = 1.5f;
 
             var text = $"{player.PuzzlePieces} pcs ({player.EntitySnapshot.World}-{player.EntitySnapshot.Level}) {player.Name}";
 
@@ -196,7 +199,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             _textRenderer.RenderText(
                 text,
                 margin,
-                margin + RenderSettings.FontSize * lineHeight * i,
+                margin + RenderSettings.FontSize * lineSpacing * i,
                 HAlign.Left,
                 VAlign.Top,
                 RenderSettings.FontSize,

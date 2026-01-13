@@ -17,7 +17,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
     private const uint VS_ViewProjMtx = 0;
     private const uint VS_WorldMtx = 4;
     private const uint PS_Color = 0;
-    private const float _lineSpacing = .9f;
+    private const float DefaultLineSpacing = 1f;
 
     public void Dispose()
     {
@@ -45,7 +45,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color fontColor, bool flipY = false)
+    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color fontColor, float lineSpacing = DefaultLineSpacing, bool flipY = false)
     {
         // Set world matrix
         var fontScale = fontSize / _font.Size;
@@ -56,19 +56,19 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetPixelShaderConstant(PS_Color, [fontColor.ToVector4()]);
 
         // Get and render triangles
-        var triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY), useVertexBuffer: false);
+        var triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY, lineSpacing), useVertexBuffer: false);
         triangles.Render();
     }
 
-    public Vector2 GetTextSize(string text, float fontSize)
+    public Vector2 GetTextSize(string text, float fontSize, float lineSpacing)
     {
         var lines = text.Split(FontTextureInfo.Newline);
         var width = lines.Select(_font.GetTextWidth).DefaultIfEmpty().Max() / _font.Size * fontSize;
-        var height = lines.Length * _lineSpacing * fontSize;
+        var height = lines.Length * lineSpacing * fontSize;
         return new(width, height);
     }
 
-    private List<TexturedVertex> GetTriangleVertices(string text, HAlign alignX, VAlign alignY)
+    private List<TexturedVertex> GetTriangleVertices(string text, HAlign alignX, VAlign alignY, float lineSpacing)
     {
         var result = new List<TexturedVertex>(text.Length);
         var divWidth = 1f / _font.Width;
@@ -89,9 +89,9 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
 
             var y = alignY switch
             {
-                VAlign.Top => (i + 1f) * _font.Size * _lineSpacing,
-                VAlign.Middle => (i + 1f - .5f * lines.Length) * _font.Size * _lineSpacing,
-                VAlign.Bottom => (i + 1f - lines.Length) * _font.Size * _lineSpacing,
+                VAlign.Top => (i + 1f) * _font.Size * lineSpacing,
+                VAlign.Middle => (i + 1f - .5f * lines.Length) * _font.Size * lineSpacing,
+                VAlign.Bottom => (i + 1f - lines.Length) * _font.Size * lineSpacing,
                 _ => throw new ArgumentOutOfRangeException(nameof(alignX), alignX, null),
             };
 
@@ -138,10 +138,10 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
 
     /// <summary>Attempts to fit text to width by adding line breaks</summary>
     /// <param name="textSize">Actual size of returned text</param>
-    public string LineBreakToFitMaxWidth(string text, float fontSize, float maxWidth, out Vector2 textSize)
+    public string LineBreakToFitMaxWidth(string text, float fontSize, float maxWidth, out Vector2 textSize, float lineSpacing)
     {
         // Early exit if text fits as-is
-        textSize = GetTextSize(text, fontSize);
+        textSize = GetTextSize(text, fontSize, lineSpacing);
         if (textSize.X <= maxWidth)
             return text;
 
@@ -159,7 +159,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
                 var candidate = currentLine.Length == 0 ? word : (currentLine + " " + word);
 
                 // If adding the word doesn't exceed maxWidth, append it
-                if (GetTextSize(candidate, fontSize).X <= maxWidth)
+                if (GetTextSize(candidate, fontSize, lineSpacing).X <= maxWidth)
                 {
                     currentLine.Clear();
                     currentLine.Append(candidate);
@@ -184,7 +184,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         }
 
         var result = string.Join(FontTextureInfo.Newline, outputLines);
-        textSize = GetTextSize(result, fontSize);
+        textSize = GetTextSize(result, fontSize, lineSpacing);
         return result;
     }
 }
