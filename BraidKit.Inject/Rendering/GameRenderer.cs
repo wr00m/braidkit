@@ -64,42 +64,15 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             var tim = _braidGame.GetTim();
             var timScreenPos = Vector2.Transform(tim.Position, worldToScreenMtx);
 
-            const float marginX = 10f;
-            var (alignX, textX) = RenderSettings.RenderTimVelocity switch
-            {
-                TextPosition.TopLeft or
-                TextPosition.MiddleLeft or
-                TextPosition.BottomLeft => (HAlign.Left, marginX),
-                TextPosition.TopCenter or
-                TextPosition.MiddleCenter or
-                TextPosition.BottomCenter => (HAlign.Center, _braidGame.ScreenWidth * .5f),
-                TextPosition.TopRight or
-                TextPosition.MiddleRight or
-                TextPosition.BottomRight => (HAlign.Right, _braidGame.ScreenWidth - marginX),
-                TextPosition.BelowEntity => (HAlign.Center, timScreenPos.X),
-                _ => throw new ArgumentOutOfRangeException(nameof(RenderSettings.RenderTimVelocity), RenderSettings.RenderTimVelocity, null),
-            };
+            var screenRect = _braidGame.GetScreenRectangle();
+            screenRect.Inflate(-10f, -7f); // Padding
 
-            const float marginY = 7f;
-            var (alignY, textY) = RenderSettings.RenderTimVelocity switch
-            {
-                TextPosition.TopLeft or
-                TextPosition.TopCenter or
-                TextPosition.TopRight => (VAlign.Top, marginY),
-                TextPosition.MiddleLeft or
-                TextPosition.MiddleCenter or
-                TextPosition.MiddleRight => (VAlign.Middle, _braidGame.ScreenHeight * .5f),
-                TextPosition.BottomLeft or
-                TextPosition.BottomCenter or
-                TextPosition.BottomRight => (VAlign.Bottom, _braidGame.ScreenHeight - marginY),
-                TextPosition.BelowEntity => (VAlign.Top, timScreenPos.Y),
-                _ => throw new ArgumentOutOfRangeException(nameof(RenderSettings.RenderTimVelocity), RenderSettings.RenderTimVelocity, null),
-            };
+            var (alignX, alignY) = RenderSettings.RenderTimVelocity.ToAlignment();
+            var alignmentAnchor = RenderSettings.RenderTimVelocity is TextPosition.BelowEntity ? timScreenPos : screenRect.GetAlignmentAnchor(alignX, alignY);
 
             _textRenderer.RenderText(
                 $"velocity\nx={tim.VelocityX:0}\ny={tim.VelocityY:0}",
-                textX,
-                textY,
+                alignmentAnchor,
                 alignX,
                 alignY,
                 RenderSettings.FontSize,
@@ -138,8 +111,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                     if (!visiblePlayer.IsOwnPlayer)
                         _textRenderer.RenderText(
                             visiblePlayer.Name,
-                            playerScreenPos.X,
-                            playerScreenPos.Y,
+                            playerScreenPos,
                             HAlign.Center,
                             VAlign.Top,
                             RenderSettings.FontSize,
@@ -169,8 +141,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                             _textRenderer.Activate();
                             _textRenderer.RenderText(
                                 bubbleText,
-                                bubbleRect.Center.X,
-                                bubbleRect.Center.Y,
+                                bubbleRect.Center,
                                 HAlign.Center,
                                 VAlign.Middle,
                                 RenderSettings.FontSize,
@@ -188,7 +159,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         foreach (var (player, i) in players.OrderByLeaderboardPosition().Select((x, i) => (x, i)))
         {
             const float margin = 10f;
-            const float lineSpacing = 1.5f;
+            const float lineHeight = 1.5f;
 
             var text = $"{player.PuzzlePieces} pcs ({player.EntitySnapshot.World}-{player.EntitySnapshot.Level}) {player.Name}";
 
@@ -198,8 +169,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
 
             _textRenderer.RenderText(
                 text,
-                margin,
-                margin + RenderSettings.FontSize * lineSpacing * i,
+                new Vector2(margin, margin + RenderSettings.FontSize * lineHeight * i),
                 HAlign.Left,
                 VAlign.Top,
                 RenderSettings.FontSize,
@@ -243,8 +213,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         foreach (var (chatMessage, i) in prevMessages.Select((x, i) => (x, i)))
             _textRenderer.RenderText(
                 $"{chatMessage.Sender}: {chatMessage.Message}",
-                margin,
-                bottom - RenderSettings.FontSize * lineHeight * (i + 2),
+                new Vector2(margin, bottom - RenderSettings.FontSize * lineHeight * (i + 2)),
                 HAlign.Left,
                 VAlign.Bottom,
                 RenderSettings.FontSize,
@@ -254,8 +223,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         if (inputActive)
             _textRenderer.RenderText(
                 $"Chat: {chatInput}",
-                margin,
-                bottom,
+                new Vector2(margin, bottom),
                 HAlign.Left,
                 VAlign.Bottom,
                 RenderSettings.FontSize,

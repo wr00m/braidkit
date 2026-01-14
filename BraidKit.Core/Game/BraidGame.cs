@@ -74,6 +74,8 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
     private GameValue<int> SpeedrunFlags { get; } = new(_processMemoryHandler, 0x5f9428);
     private GameValue<uint> SpeedrunNumFrames { get; } = new(_processMemoryHandler, 0x5f9434);
 
+    public Rect GetScreenRectangle() => new(ScreenWidth, ScreenHeight);
+
     public bool IsSpeedrunModeActive => SpeedrunFlags != 0;
     public int? SpeedrunFrameIndex => IsSpeedrunModeActive ? (int)SpeedrunNumFrames.Value : null;
 

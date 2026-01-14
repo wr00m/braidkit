@@ -5,6 +5,7 @@ using System.Text;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
 using static BraidKit.Inject.Rendering.ShaderHelper;
+using Rect = Vortice.Mathematics.Rect;
 
 namespace BraidKit.Inject.Rendering;
 
@@ -45,11 +46,11 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         _device.SetVertexShaderConstant(VS_ViewProjMtx, viewProjMtx);
     }
 
-    public void RenderText(string text, float x, float y, HAlign alignX, VAlign alignY, float fontSize, Color fontColor, float lineSpacing = DefaultLineSpacing, bool flipY = false)
+    public void RenderText(string text, Vector2 alignmentAnchor, HAlign alignX, VAlign alignY, float fontSize, Color fontColor, float lineSpacing = DefaultLineSpacing, bool flipY = false)
     {
         // Set world matrix
         var fontScale = fontSize / _font.Size;
-        var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateScale(fontScale, flipY ? -fontScale : fontScale, fontScale) * Matrix4x4.CreateTranslation(x, y, 0f));
+        var worldMtx = Matrix4x4.Transpose(Matrix4x4.CreateScale(fontScale, flipY ? -fontScale : fontScale, fontScale) * Matrix4x4.CreateTranslation(alignmentAnchor.X, alignmentAnchor.Y, 0f));
         _device.SetVertexShaderConstant(VS_WorldMtx, worldMtx);
 
         // Set font color
@@ -58,6 +59,11 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         // Get and render triangles
         var triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY, lineSpacing), useVertexBuffer: false);
         triangles.Render();
+    }
+
+    public void RenderText(string text, Rect alignmentBounds, HAlign alignX, VAlign alignY, float fontSize, Color fontColor, float lineSpacing = DefaultLineSpacing, bool flipY = false)
+    {
+        RenderText(text, alignmentBounds.GetAlignmentAnchor(alignX, alignY), alignX, alignY, fontSize, fontColor, lineSpacing, flipY);
     }
 
     public Vector2 GetTextSize(string text, float fontSize, float lineSpacing)
@@ -92,7 +98,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
                 VAlign.Top => (i + 1f) * _font.Size * lineSpacing,
                 VAlign.Middle => (i + 1f - .5f * lines.Length) * _font.Size * lineSpacing,
                 VAlign.Bottom => (i + 1f - lines.Length) * _font.Size * lineSpacing,
-                _ => throw new ArgumentOutOfRangeException(nameof(alignX), alignX, null),
+                _ => throw new ArgumentOutOfRangeException(nameof(alignY), alignY, null),
             };
 
             foreach (var @char in line)
