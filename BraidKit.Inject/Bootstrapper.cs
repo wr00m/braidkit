@@ -50,6 +50,7 @@ internal static class Bootstrapper
 
                     if (!_braidGame.InMainMenu)
                     {
+                        _chatInput.IsDisabled = !_braidGame.DisplaySystem.WindowHasFocus || _braidGame.WasInMainMenuAtStartOfRender;
                         if (_chatInput.Update(out var completedMessage))
                             _multiplayerClient.SendChatMessage(completedMessage);
 
@@ -132,11 +133,8 @@ internal static class Bootstrapper
             // Load argument struct from unmanaged memory
             var args = Marshal.PtrToStructure<JoinServerSettings>(argsAddr);
 
-            if (_multiplayerClient != null)
-            {
-                _multiplayerClient.Dispose();
-                _multiplayerClient = null;
-            }
+            _multiplayerClient?.Dispose();
+            _multiplayerClient = null;
 
             var serverAddress = ReadAndReleaseStringArg(args.ServerAddress);
             var playerName = ReadAndReleaseStringArg(args.PlayerName) ?? "";

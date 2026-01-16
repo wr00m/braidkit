@@ -9,11 +9,20 @@ internal class ChatInput
     private readonly KeyboardState _keyboardState = new();
     public string? Message { get; private set; }
     [MemberNotNullWhen(true, nameof(Message))] public bool IsActive => Message is not null;
+    public bool IsDisabled { get; set; } = false;
 
     /// <returns>True if a new message was completed</returns>
     public bool Update([NotNullWhen(true)] out string? completedMessage)
     {
+        // Update keyboard state even if disabled to prevent issues when game regains focus, when resuming by pressing enter in main menu, etc.
         _keyboardState.UpdateState();
+
+        // Early exit if disabled
+        if (IsDisabled)
+        {
+            completedMessage = null;
+            return false;
+        }
 
         // Toggle typing off if escape key was pressed
         if (_keyboardState.WasKeyJustPressed(VirtualKey.Escape))

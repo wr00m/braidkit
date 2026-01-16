@@ -140,6 +140,7 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
 
     private PointerPath DisplaySystemPointerPath { get; } = new(_processMemoryHandler, 0xb2989c, 0x4);
     public DisplaySystem DisplaySystem => new(_processMemoryHandler, DisplaySystemPointerPath.GetAddress()!.Value);
+    public GameValue<bool> WasInMainMenuAtStartOfRender { get; } = new(_processMemoryHandler, 0x5f68ea);
 
     public void AddWatermark() => _processMemoryHandler.Write(0x00507bda, 0x00579e10);
 
