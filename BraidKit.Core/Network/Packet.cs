@@ -1,5 +1,4 @@
-﻿using BraidKit.Core.Helpers;
-using LiteNetLib.Utils;
+﻿using LiteNetLib.Utils;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Vortice.Mathematics;
@@ -15,6 +14,7 @@ internal enum PacketType : byte
     PlayerStateBroadcast,
     PlayerChatMessage,
     PlayerChatMessageBroadcast,
+    ServerMessage,
     StartSpeedrunBroadcast,
 }
 
@@ -213,8 +213,26 @@ internal record PlayerChatMessageBroadcastPacket(string Sender, PlayerId SenderP
             Message: reader.GetString(PacketConstants.ChatMessageMaxLength),
             Color: reader.GetColor());
     }
+}
 
-    public static PlayerChatMessageBroadcastPacket ServerMessage(string message) => new("Server", PlayerId.Unknown, message, ColorHelper.White);
+internal record ServerMessagePacket(string Message)
+    : IPacket, IPacketable<ServerMessagePacket>
+{
+    public PacketType PacketType => PacketType.ServerMessage;
+
+    public void Serialize(NetDataWriter writer)
+    {
+        writer.Put((byte)PacketType);
+        writer.Put(Message, PacketConstants.ChatMessageMaxLength);
+    }
+
+    public static ServerMessagePacket Deserialize(NetDataReader reader)
+    {
+        if (!reader.ReadPacketType(PacketType.ServerMessage))
+            return default!;
+
+        return new(Message: reader.GetString(PacketConstants.ChatMessageMaxLength));
+    }
 }
 
 internal record StartSpeedrunBroadcastPacket()
@@ -262,6 +280,7 @@ internal static class PacketParser
             PacketType.PlayerStateBroadcast => PlayerStateBroadcastPacket.Deserialize(reader),
             PacketType.PlayerChatMessage => PlayerChatMessagePacket.Deserialize(reader),
             PacketType.PlayerChatMessageBroadcast => PlayerChatMessageBroadcastPacket.Deserialize(reader),
+            PacketType.ServerMessage => ServerMessagePacket.Deserialize(reader),
             PacketType.StartSpeedrunBroadcast => StartSpeedrunBroadcastPacket.Deserialize(reader),
             _ => null,
         };

@@ -17,6 +17,7 @@ public sealed class Client : IDisposable
 
     public event Action StartSpeedrunEvent = null!;
     public event Action<ChatMessage> ChatMessageReceivedEvent = null!;
+    public event Action<string> ServerMessageReceivedEvent = null!;
 
     /// <summary>True when connection to server has been established</summary>
     [MemberNotNullWhen(true, nameof(_connectedServer))]
@@ -195,6 +196,9 @@ public sealed class Client : IDisposable
             case PlayerChatMessageBroadcastPacket playerChatMessageBroadcastPacket:
                 HandlePlayerChatMessageBroadcast(playerChatMessageBroadcastPacket);
                 break;
+            case ServerMessagePacket serverMessagePacket:
+                HandleServerMessage(serverMessagePacket);
+                break;
             case StartSpeedrunBroadcastPacket startSpeedrunBroadcastPacket:
                 HandleStartSpeedrunBroadcast(startSpeedrunBroadcastPacket);
                 break;
@@ -275,13 +279,23 @@ public sealed class Client : IDisposable
     private void HandlePlayerChatMessageBroadcast(PlayerChatMessageBroadcastPacket packet)
     {
         var message = new ChatMessage(packet.Sender, packet.SenderPlayerId, packet.Message, packet.Color);
+        AddChatMessageToLog(message);
+        ChatMessageReceivedEvent?.Invoke(message);
+    }
+
+    private void HandleServerMessage(ServerMessagePacket packet)
+    {
+        AddChatMessageToLog(new("", PlayerId.Unknown, packet.Message, ColorHelper.White));
+        ServerMessageReceivedEvent?.Invoke(packet.Message);
+    }
+
+    private void AddChatMessageToLog(ChatMessage message)
+    {
         _chatLog.Add(message);
 
         const int chatLogMaxCount = 100;
         if (_chatLog.Count > chatLogMaxCount)
             _chatLog.RemoveRange(0, _chatLog.Count - chatLogMaxCount);
-
-        ChatMessageReceivedEvent?.Invoke(message);
     }
 
     private void HandleStartSpeedrunBroadcast(StartSpeedrunBroadcastPacket _)

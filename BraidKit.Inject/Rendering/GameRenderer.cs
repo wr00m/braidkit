@@ -212,7 +212,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         // Render previous messages
         foreach (var (chatMessage, i) in prevMessages.Select((x, i) => (x, i)))
             _textRenderer.RenderText(
-                $"{chatMessage.Sender}: {chatMessage.Message}",
+                (!string.IsNullOrWhiteSpace(chatMessage.Sender) ? $"{chatMessage.Sender}: " : "") + chatMessage.Message,
                 new Vector2(margin, bottom - RenderSettings.FontSize * lineHeight * (i + 2)),
                 HAlign.Left,
                 VAlign.Bottom,

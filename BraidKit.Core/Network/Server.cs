@@ -1,6 +1,7 @@
 ﻿using BraidKit.Core.Helpers;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using System.Collections.Immutable;
 using Vortice.Mathematics;
 
 namespace BraidKit.Core.Network;
@@ -51,10 +52,9 @@ public sealed class Server : IDisposable
             if (_connectedPlayers.TryGetValue(peer.Id, out var player))
             {
                 var packet = new PlayerJoinResponsePacket(player.PlayerId, player.Name, player.Color);
-                var writer = new NetDataWriter();
-                packet.Serialize(writer);
-
-                peer.Send(writer, DeliveryMethod.ReliableOrdered);
+                peer.SendPacket(packet, DeliveryMethod.ReliableOrdered);
+                peer.SendServerMessage("Connected to server. Have fun!");
+                peer.SendServerMessage($"Press Enter to open chat. Type \"{ServerCommand.Help}\" for instructions.");
             }
         };
 
@@ -216,30 +216,23 @@ public sealed class Server : IDisposable
 
         switch (commandName)
         {
-            case "!start":
+            case ServerCommand.Start:
                 if (commandArgs is null)
                 {
                     if (_connectedPlayers.Any(x => x.Value.IsInSpeedrunMode))
-                    {
-                        var packet = PlayerChatMessageBroadcastPacket.ServerMessage("Cannot start synchronized speedrun because a player is already in speedrun mode");
-                        var writer = new NetDataWriter();
-                        packet.Serialize(writer);
-                        _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
-                    }
+                        sender.SendServerMessage("Cannot start synchronized speedrun because a player is already in speedrun mode");
                     else
                     {
                         var packet = new StartSpeedrunBroadcastPacket();
-                        var writer = new NetDataWriter();
-                        packet.Serialize(writer);
-                        _netManager.SendToAll(writer, DeliveryMethod.ReliableUnordered);
+                        _netManager.SendToAll(packet.ToWriter(), DeliveryMethod.ReliableUnordered);
                     }
                 }
                 return true;
-            case "!disconnect":
+            case ServerCommand.Disconnect:
                 if (commandArgs is null)
                     sender.Disconnect();
                 return true;
-            case "!name":
+            case ServerCommand.Name:
                 var playerName = (commandArgs?.Trim() ?? "").Truncate(PacketConstants.PlayerNameMaxLength);
                 if (IsValidPlayerName(playerName) && player != null)
                 {
@@ -250,7 +243,7 @@ public sealed class Server : IDisposable
                     _netManager.SendToAll(writer, DeliveryMethod.ReliableSequenced);
                 }
                 return true;
-            case "!color":
+            case ServerCommand.Color:
                 var playerColor = commandArgs is null ? GetRandomPlayerColor() : ColorHelper.TryParseColor(commandArgs, out var c) ? c : ColorHelper.Empty;
                 if (IsValidPlayerColor(playerColor) && player != null)
                 {
@@ -260,6 +253,13 @@ public sealed class Server : IDisposable
                     packet.Serialize(writer);
                     _netManager.SendToAll(writer, DeliveryMethod.ReliableSequenced);
                 }
+                return true;
+            case ServerCommand.Ping:
+                if (commandArgs is null)
+                    sender.SendServerMessage($"Your ping is {sender.Ping} ms");
+                return true;
+            case ServerCommand.Help:
+                ServerCommand.CommandHelpMessages.ForEach(sender.SendServerMessage);
                 return true;
             default:
                 return false;
@@ -297,4 +297,25 @@ public sealed class Server : IDisposable
 
     private static bool IsValidPlayerName(string name) => !string.IsNullOrWhiteSpace(name) && name.Length <= PacketConstants.PlayerNameMaxLength;
     private static bool IsValidPlayerColor(Color color) => !color.IsSameColor(ColorHelper.Empty, ignoreAlpha: true);
+
+    private static class ServerCommand
+    {
+        public const string Start = "!start";
+        public const string Disconnect = "!disconnect";
+        public const string Name = "!name";
+        public const string Color = "!color";
+        public const string Ping = "!ping";
+        public const string Help = "!help";
+
+        public static List<string> CommandHelpMessages => [.. Commands.Select(x => $"{x.Command} : {x.Description}")];
+
+        private static readonly ImmutableList<(string Command, string Description)> Commands = [
+            (Start,      "Start synchronized full-game speedrun"),
+            (Disconnect, "Disconnect from server"),
+            (Name,       "Change your name"),
+            (Color,      "Change your color"),
+            (Ping,       "Show your latency to server"),
+            (Help,       "Show this help section"),
+        ];
+    }
 }
