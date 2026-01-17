@@ -74,7 +74,8 @@ internal static class Geometry
 
         // Shrink rectangle to accommodate the radius
         rect.Inflate(-cornerRadius, -cornerRadius);
-        List<Vector2> corners = [rect.BottomLeft, rect.TopLeft, rect.TopRight, rect.BottomRight];
+        Vector2[] corners = [rect.BottomLeft, rect.TopLeft, rect.TopRight, rect.BottomRight];
+        Vector2[] tangents = [new(-1, 0), new(0, -1), new(1, 0), new(0, 1)];
 
         // Inner rectangle
         result.AddRange(QuadsToTriangles(corners));
@@ -83,19 +84,16 @@ internal static class Geometry
         for (int i = 0; i < 4; i++)
         {
             var corner = corners[i];
-            var nextCorner = corners[(i + 1) % 4];
-
-            var side = nextCorner - corner;
-            var sideDir = side.GetNormalized();
-            var sideTangent = sideDir.GetPerpendicularCW();
-            var sideHeightOffset = sideTangent * cornerRadius;
+            var nextCorner = corners[i < 3 ? i + 1 : 0];
+            var tangent = tangents[i];
+            var offset = tangent * cornerRadius;
 
             // Side outer rectangle
-            result.AddRange(QuadsToTriangles([corner, corner + sideHeightOffset, nextCorner + sideHeightOffset, nextCorner]));
+            result.AddRange(QuadsToTriangles([corner, corner + offset, nextCorner + offset, nextCorner]));
 
             // Corner arc
-            var fromRads = sideTangent.GetRadians();
-            var toRads = fromRads - MathF.PI * .5f;
+            var toRads = tangent.GetRadians();
+            var fromRads = toRads - MathF.PI * .5f;
             result.AddRange(GetArcTriangleFan(corner, cornerRadius, fromRads, toRads, cornerSegments).TriangleFanToTriangles());
         }
 
@@ -138,7 +136,7 @@ internal static class Geometry
         return [.. tris.Select(x => new TexturedVertex(x.X, x.Y, 0f, 0f))];
     }
 
-    private static List<TVertex> QuadsToTriangles<TVertex>(this List<TVertex> verts)
+    private static List<TVertex> QuadsToTriangles<TVertex>(this IList<TVertex> verts)
     {
         if (verts.Count % 4 != 0)
             throw new ArgumentException("Invalid quad vertex list");
