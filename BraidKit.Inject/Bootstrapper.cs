@@ -24,6 +24,7 @@ internal static class Bootstrapper
     private static readonly StopRenderingEntitiesHook _stopRenderingEntitiesHook;
     private static readonly AddEventHook _addEventHook;
     private static readonly IsTypingHook _isTypingHook;
+    private static readonly KeyboardGetButtonStateHook _keyboardGetButtonStateHook;
     private static readonly ChatInput _chatInput = new();
     private static Client? _multiplayerClient;
 
@@ -104,8 +105,13 @@ internal static class Bootstrapper
             });
             _isTypingHook = new(() =>
             {
-                // Tell game that we are currently typing, to prevent Tim from moving around when chat input is active
+                // Tell game that user is typing when chat input is active
                 return _chatInput.IsActive ? true : null;
+            });
+            _keyboardGetButtonStateHook = new(() =>
+            {
+                // Prevent Tim from moving around when chat input is active
+                return _chatInput.IsActive ? false : null;
             });
         }
         catch (Exception ex)
