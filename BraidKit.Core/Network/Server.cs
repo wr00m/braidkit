@@ -24,25 +24,25 @@ public sealed class Server : IDisposable
             const int clientMaxCount = 100;
             if (_netManager.ConnectedPeersCount >= clientMaxCount)
             {
-                request.Reject(); // TODO: "Too many connections"
+                request.RejectWithMessage("Too many connections");
                 return;
             }
 
             if (!PacketParser.TryReadPacket(request.Data, out var packet) || packet is not PlayerJoinRequestPacket playerJoinRequestPacket)
             {
-                request.Reject(); // TODO: "Invalid join request"
+                request.RejectWithMessage("Invalid join request");
                 return;
             }
 
             if (playerJoinRequestPacket.ApiVersion != ApiVersion.Current)
             {
-                request.Reject(); // TODO: $"API version mismatch (client: {playerJoinRequestPacket.ApiVersion}, server: {ApiVersion.Current})"
+                request.RejectWithMessage($"API version mismatch (client: {playerJoinRequestPacket.ApiVersion}, server: {ApiVersion.Current})");
                 return;
             }
 
             var peer = request.Accept();
 
-            // TODO: What if HandlePlayerJoinRequest returns false?
+            // TODO: What if HandlePlayerJoinRequest returns false? Request has already been accepted...
             HandlePlayerJoinRequest(playerJoinRequestPacket, peer);
         };
 

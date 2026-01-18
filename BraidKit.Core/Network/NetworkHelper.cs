@@ -5,6 +5,13 @@ namespace BraidKit.Core.Network;
 
 internal static class NetworkHelper
 {
+    public static void RejectWithMessage(this ConnectionRequest connectionRequest, string message)
+    {
+        var writer = new NetDataWriter();
+        writer.Put(message);
+        connectionRequest.Reject(writer);
+    }
+
     public static void SendPacket<T>(this NetPeer client, T packet, DeliveryMethod deliveryMethod) where T : IPacket, IPacketable<T>
     {
         client.Send(packet.ToWriter(), deliveryMethod);
