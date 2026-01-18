@@ -1,6 +1,7 @@
 ﻿using BraidKit.Core.Helpers;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Vortice.Direct3D9;
 using Vortice.Mathematics;
@@ -70,8 +71,21 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
     {
         var lines = text.Split(FontTextureInfo.Newline);
         var width = lines.Select(_font.GetTextWidth).DefaultIfEmpty().Max() / _font.Size * fontSize;
-        var height = lines.Length * lineSpacing * fontSize;
+        var height = GetTextHeight(lines.Length, fontSize, lineSpacing);
         return new(width, height);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float GetTextHeight(int lineCount, float fontSize, float lineSpacing)
+    {
+        if (lineCount < 1)
+            return 0f;
+
+        var textHeight = fontSize * lineCount;
+        var spacing = lineSpacing - 1f;
+        var totalSpacing = fontSize * (lineCount - 1) * spacing;
+        var totalHeight = textHeight + totalSpacing;
+        return totalHeight;
     }
 
     private List<TexturedVertex> GetTriangleVertices(string text, HAlign alignX, VAlign alignY, float lineSpacing)
@@ -80,6 +94,17 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         var divWidth = 1f / _font.Width;
         var divHeight = 1f / _font.Height;
         var lines = text.Split(FontTextureInfo.Newline);
+        var lineHeight = _font.Size;
+        var totalHeight = GetTextHeight(lines.Length, lineHeight, lineSpacing);
+        var lineStep = lineHeight * lineSpacing;
+        var line0 = alignY switch
+        {
+            VAlign.Top => 0f,
+            VAlign.Middle => -totalHeight * .5f,
+            VAlign.Bottom => -totalHeight,
+            _ => throw new ArgumentOutOfRangeException(nameof(alignY), alignY, null),
+        };
+        line0 += lineHeight + _font.VisualOffsetY;
 
         for (int i = 0; i < lines.Length; i++)
         {
@@ -93,13 +118,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
                 _ => throw new ArgumentOutOfRangeException(nameof(alignX), alignX, null),
             };
 
-            var y = alignY switch
-            {
-                VAlign.Top => (i + 1f) * _font.Size * lineSpacing,
-                VAlign.Middle => (i + 1f - .5f * lines.Length) * _font.Size * lineSpacing,
-                VAlign.Bottom => (i + 1f - lines.Length) * _font.Size * lineSpacing,
-                _ => throw new ArgumentOutOfRangeException(nameof(alignY), alignY, null),
-            };
+            var y = line0 + i * lineStep;
 
             foreach (var @char in line)
             {

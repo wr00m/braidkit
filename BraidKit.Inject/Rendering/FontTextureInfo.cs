@@ -11,6 +11,7 @@ internal class FontTextureInfo
     public required int Width { get; init; }
     public required int Height { get; init; }
     public required Dictionary<char, FontTextureChar> Characters { get; init; }
+    public float VisualOffsetY => Size * -.15f; // Not sure why, but vertical alignment just looks better with this offset
 
     public int GetTextWidth(string text) => text.Select(x => Characters.TryGetValue(x, out var charData) ? charData.Advance : 0).Sum();
 }
