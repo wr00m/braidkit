@@ -20,6 +20,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
     private const uint VS_WorldMtx = 4;
     private const uint PS_Color = 0;
     private const float DefaultLineSpacing = 1f;
+    private readonly Dictionary<CacheKey, CachedTextGeometry> _textGeometryCache = [];
 
     public void Dispose()
     {
@@ -57,8 +58,22 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         // Set font color
         _device.SetPixelShaderConstant(PS_Color, [fontColor.ToVector4()]);
 
-        // Get and render triangles
-        var triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY, lineSpacing), useVertexBuffer: false);
+        // Get or create cached geometry
+        var cacheKey = new CacheKey(text, alignX, alignY, lineSpacing);
+        Primitives<TexturedVertex> triangles;
+        if (_textGeometryCache.TryGetValue(cacheKey, out var cachedValue))
+        {
+            triangles = cachedValue.Triangles;
+            cachedValue.LastUsed = DateTime.Now;
+        }
+        else
+        {
+            triangles = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, GetTriangleVertices(text, alignX, alignY, lineSpacing));
+            _textGeometryCache.Add(cacheKey, new() { Triangles = triangles });
+            RemoveStaleGeometriesFromCache();
+        }
+
+        // Render triangles
         triangles.Render();
     }
 
@@ -211,6 +226,21 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
         var result = string.Join(FontTextureInfo.Newline, outputLines);
         textSize = GetTextSize(result, fontSize, lineSpacing);
         return result;
+    }
+
+    private void RemoveStaleGeometriesFromCache()
+    {
+        var staleKeys = _textGeometryCache.Where(x => x.Value.Stale).Select(x => x.Key).ToList();
+        staleKeys.ForEach(staleKey => _textGeometryCache.Remove(staleKey));
+    }
+
+    private record CacheKey(string Text, HAlign AlignX, VAlign AlignY, float LineSpacing);
+    private class CachedTextGeometry
+    {
+        public required Primitives<TexturedVertex> Triangles { get; set; }
+        public DateTime LastUsed { get; set; } = DateTime.Now;
+        public TimeSpan TimeSinceLastUsed => DateTime.Now - LastUsed;
+        public bool Stale => TimeSinceLastUsed > TimeSpan.FromSeconds(1);
     }
 }
 
