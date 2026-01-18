@@ -182,15 +182,18 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         if (_braidGame.InMainMenu)
             return;
 
-        var prevMessages = chatLog.Where(x => inputActive || !x.Stale).OrderByDescending(x => x.Received).ToList();
+        const int maxPrevMessages = 10;
+        var prevMessages = chatLog.Where(x => inputActive || !x.Stale).OrderByDescending(x => x.Received).Take(maxPrevMessages).ToList();
         if (!inputActive && prevMessages.Count == 0)
             return;
 
         GetMatrices(out var _, out var screenMtx, out var worldToScreenMtx);
 
-        const float margin = 10f;
-        const float lineHeight = 1.5f;
-        var bottom = _braidGame.ScreenHeight * .85f;
+        const float paddingX = 10f;
+        const float paddingY = 12f;
+        const float lineSpacing = 1.5f;
+        var chatWindowBottom = _braidGame.ScreenHeight;
+        float GetChatLineY(int lineIndex) => chatWindowBottom - paddingY - lineSpacing * lineIndex * RenderSettings.FontSize;
 
         // Render background
         if (inputActive)
@@ -198,10 +201,13 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
             _simpleRenderer.Activate();
             _simpleRenderer.SetViewProjectionMatrix(screenMtx);
 
-            var bgBottom = bottom + RenderSettings.FontSize * lineHeight * .5f;
-            var bgHeight = ((prevMessages.Count > 0 ? prevMessages.Count + 1 : 0) + 1.5f) * RenderSettings.FontSize * lineHeight;
+            var lineCount = 1; // Show only chat input line by default
+            if (prevMessages.Count > 0)
+                lineCount += prevMessages.Count + 1; // Show previous messages plus one additional empty line for spacing
+
+            var bgHeight = TextRenderer.GetTextHeight(lineCount, RenderSettings.FontSize, lineSpacing) + paddingY * 2f;
             var bgColor = new Color(.0f, .0f, .0f, .5f);
-            var bgRect = new Rect(_braidGame.ScreenWidth, bgHeight) { Bottom = bgBottom };
+            var bgRect = new Rect(_braidGame.ScreenWidth, bgHeight) { Bottom = chatWindowBottom };
             var bgRectPrimitives = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, Geometry.GetRectangleTriangleList(bgRect), useVertexBuffer: false);
             _simpleRenderer.Render(bgRectPrimitives, bgColor);
         }
@@ -213,7 +219,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         foreach (var (chatMessage, i) in prevMessages.Select((x, i) => (x, i)))
             _textRenderer.RenderText(
                 (!string.IsNullOrWhiteSpace(chatMessage.Sender) ? $"{chatMessage.Sender}: " : "") + chatMessage.Message,
-                new Vector2(margin, bottom - RenderSettings.FontSize * lineHeight * (i + 2)),
+                new Vector2(paddingX, GetChatLineY(i + 2)),
                 HAlign.Left,
                 VAlign.Bottom,
                 RenderSettings.FontSize,
@@ -223,7 +229,7 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
         if (inputActive)
             _textRenderer.RenderText(
                 $"Chat: {chatInput}",
-                new Vector2(margin, bottom),
+                new Vector2(paddingX, GetChatLineY(0)),
                 HAlign.Left,
                 VAlign.Bottom,
                 RenderSettings.FontSize,

@@ -91,7 +91,7 @@ internal class TextRenderer(IDirect3DDevice9 _device) : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float GetTextHeight(int lineCount, float fontSize, float lineSpacing)
+    public static float GetTextHeight(int lineCount, float fontSize, float lineSpacing)
     {
         if (lineCount < 1)
             return 0f;
