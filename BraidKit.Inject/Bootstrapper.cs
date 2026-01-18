@@ -23,6 +23,7 @@ internal static class Bootstrapper
     private static readonly GetGuyAnimationIndexAndDurationHook _getGuyAnimationIndexAndDurationHook;
     private static readonly StopRenderingEntitiesHook _stopRenderingEntitiesHook;
     private static readonly AddEventHook _addEventHook;
+    private static readonly IsTypingHook _isTypingHook;
     private static readonly ChatInput _chatInput = new();
     private static Client? _multiplayerClient;
 
@@ -100,6 +101,11 @@ internal static class Bootstrapper
             {
                 // Prevent game from adding keyboard events when chat input is active
                 return !_chatInput.IsActive;
+            });
+            _isTypingHook = new(() =>
+            {
+                // Tell game that we are currently typing, to prevent Tim from moving around when chat input is active
+                return _chatInput.IsActive ? true : null;
             });
         }
         catch (Exception ex)
