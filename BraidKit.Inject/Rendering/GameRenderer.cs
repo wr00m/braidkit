@@ -129,9 +129,9 @@ internal class GameRenderer(BraidGame _braidGame, IDirect3DDevice9 _device) : ID
                         foreach (var (playerChatEntry, i) in playerChatLog.Select((x, i) => (x, i)))
                         {
                             var bubbleText = _textRenderer.LineBreakToFitMaxWidth(playerChatEntry.Message.Trim(), RenderSettings.FontSize, bubbleTextMaxWidth, out var textSize, bubbleLineSpacing);
-                            var bubbleSize = textSize + new Vector2(bubblePadding * 2f);
-                            var bubbleRect = new Rect(bubbleSize) { BottomCenter = bubbleBottomCenter };
                             var bubbleTailSize = i == 0 ? new Vector2(10f, 15f) : Vector2.Zero;
+                            var bubbleSize = Vector2.Max(textSize, new(10f, 10f)) + new Vector2(bubblePadding * 2f);
+                            var bubbleRect = new Rect(bubbleSize) { BottomCenter = bubbleBottomCenter };
                             var bubbleTriangles = Geometry.GetSpeechBubbleTriangleList(bubbleRect, bubbleTailSize, bubblePadding);
                             var bubblePrimitives = new Primitives<TexturedVertex>(_device, PrimitiveType.TriangleList, bubbleTriangles, useVertexBuffer: false);
 
