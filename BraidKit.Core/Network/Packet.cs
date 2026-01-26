@@ -261,6 +261,12 @@ internal static class PacketParser
         return reader.AvailableBytes > 0 && reader.GetByte() == (byte)expectedPacketType;
     }
 
+    public static bool TryReadPacket<TPacket>(NetDataReader reader, [NotNullWhen(true)] out TPacket? result) where TPacket : class, IPacket
+    {
+        result = TryReadPacket(reader, out var packet) ? packet as TPacket : null;
+        return result is not null;
+    }
+
     public static bool TryReadPacket(NetDataReader reader, [NotNullWhen(true)] out IPacket? result)
     {
         if (reader.AvailableBytes == 0)

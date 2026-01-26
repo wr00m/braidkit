@@ -19,44 +19,9 @@ public sealed class Server : IDisposable
         _netManager = new(listener);
         _netManager.Start(port);
 
-        listener.ConnectionRequestEvent += request =>
-        {
-            const int clientMaxCount = 100;
-            if (_netManager.ConnectedPeersCount >= clientMaxCount)
-            {
-                request.RejectWithMessage("Too many connections");
-                return;
-            }
+        listener.ConnectionRequestEvent += HandleConnectionRequestEvent;
 
-            if (!PacketParser.TryReadPacket(request.Data, out var packet) || packet is not PlayerJoinRequestPacket playerJoinRequestPacket)
-            {
-                request.RejectWithMessage("Invalid join request");
-                return;
-            }
-
-            if (playerJoinRequestPacket.ApiVersion != ApiVersion.Current)
-            {
-                request.RejectWithMessage($"API version mismatch (client: {playerJoinRequestPacket.ApiVersion}, server: {ApiVersion.Current})");
-                return;
-            }
-
-            var peer = request.Accept();
-
-            // TODO: What if HandlePlayerJoinRequest returns false? Request has already been accepted...
-            HandlePlayerJoinRequest(playerJoinRequestPacket, peer);
-        };
-
-        listener.PeerConnectedEvent += peer =>
-        {
-            // Send response packet
-            if (_connectedPlayers.TryGetValue(peer.Id, out var player))
-            {
-                var packet = new PlayerJoinResponsePacket(player.PlayerId, player.Name, player.Color);
-                peer.SendPacket(packet, DeliveryMethod.ReliableOrdered);
-                peer.SendServerMessage("Connected to server. Have fun!");
-                peer.SendServerMessage($"Press Enter to open chat. Type \"{ServerCommand.Help}\" for instructions.");
-            }
-        };
+        listener.PeerConnectedEvent += HandlePeerConnectedEvent;
 
         listener.PeerDisconnectedEvent += (peer, info) => RemovePlayer(peer.Id);
 
@@ -116,42 +81,64 @@ public sealed class Server : IDisposable
         }
     }
 
-    private bool HandlePlayerJoinRequest(PlayerJoinRequestPacket packet, NetPeer sender)
+    private void HandleConnectionRequestEvent(ConnectionRequest request)
     {
+        const int clientMaxCount = 100;
+        if (_netManager.ConnectedPeersCount >= clientMaxCount)
+        {
+            request.RejectWithMessage("Too many connections");
+            return;
+        }
+
+        if (!PacketParser.TryReadPacket<PlayerJoinRequestPacket>(request.Data, out var packet))
+        {
+            request.RejectWithMessage("Invalid join request");
+            return;
+        }
+
         if (packet.ApiVersion != ApiVersion.Current)
-            return false;
+        {
+            request.RejectWithMessage($"API version mismatch (client: {packet.ApiVersion}, server: {ApiVersion.Current})");
+            return;
+        }
 
         // Handle race condition when multiple players join at the same time
         // TODO: We don't actually need this lock if we keep NetManager.UnsyncedEvents set to false 
         lock (_connectedPlayers)
         {
-            // Add player if not already connected
-            if (!_connectedPlayers.TryGetValue(sender.Id, out var player))
+            if (!TryGetNextUniquePlayerId(out var playerId))
             {
-                // Deny join request if unable to get a unique player id
-                if (!TryGetNextUniquePlayerId(out var playerId))
-                {
-                    Console.WriteLine("Failed to generate player id");
-                    return false;
-                }
-
-                player = new()
-                {
-                    PlayerId = playerId,
-                    Name = IsValidPlayerName(packet.PlayerName) ? packet.PlayerName.Trim() : GetUniquePlayerName(),
-                    Color = IsValidPlayerColor(packet.PlayerColor) ? packet.PlayerColor : GetRandomPlayerColor(),
-                    SpeedrunFrameIndex = default,
-                    PuzzlePieces = default,
-                    EntitySnapshot = EntitySnapshot.Empty,
-                    Updated = DateTime.Now,
-                };
-
-                _connectedPlayers.Add(sender.Id, player);
-
-                Console.WriteLine($"Player joined: {player.Name}");
+                request.RejectWithMessage("Failed to generate player id");
+                return;
             }
 
-            return true;
+            var player = new Player
+            {
+                PlayerId = playerId,
+                Name = IsValidPlayerName(packet.PlayerName) ? packet.PlayerName.Trim() : GetUniquePlayerName(),
+                Color = IsValidPlayerColor(packet.PlayerColor) ? packet.PlayerColor : GetRandomPlayerColor(),
+                SpeedrunFrameIndex = default,
+                PuzzlePieces = default,
+                EntitySnapshot = EntitySnapshot.Empty,
+                Updated = DateTime.Now,
+            };
+
+            var clientPeer = request.Accept();
+            _connectedPlayers[clientPeer.Id] = player;
+
+            Console.WriteLine($"Player joined: {player.Name}");
+        }
+    }
+
+    private void HandlePeerConnectedEvent(NetPeer peer)
+    {
+        // Send response packet
+        if (_connectedPlayers.TryGetValue(peer.Id, out var player))
+        {
+            var packet = new PlayerJoinResponsePacket(player.PlayerId, player.Name, player.Color);
+            peer.SendPacket(packet, DeliveryMethod.ReliableOrdered);
+            peer.SendServerMessage("Connected to server. Have fun!");
+            peer.SendServerMessage($"Press Enter to open chat. Type \"{ServerCommand.Help}\" for instructions.");
         }
     }
 
