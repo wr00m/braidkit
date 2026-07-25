@@ -190,6 +190,8 @@ public sealed class BraidGame(Process _process, ProcessMemoryHandler _processMem
     public CampaignState SpeedrunCampaignState => new(_processMemoryHandler, _gameGlobalsAddr + 0x18e0);
     public CampaignState CurrentCampaignState => IsSpeedrunModeActive ? SpeedrunCampaignState : UsualCampaignState;
 
+    public GameValue<bool> Rewinding { get; } = new(_processMemoryHandler, _gameGlobalsAddr + 0x2960);
+
     public bool TryGetTimSprite(EntitySnapshot entity, out RectangleF world, out RectangleF uv, out IntPtr textureMapAddr)
     {
         var animationSet = TimSpriteAnimationSet.Value;
