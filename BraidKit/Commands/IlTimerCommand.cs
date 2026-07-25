@@ -9,19 +9,18 @@ internal static partial class Commands
     private static Command IlTimerCommand =>
         new Command("il-timer", "Prints level complete times")
         {
-            // TODO: Aliases should be single-letter
             new Option<int?>("--world", "-w") { Description = "Only use timer for this world" },
             new Option<int?>("--level", "-l") { Description = "Only use timer for this level" },
             new Option<bool>("--live", "-t") { Description = "Use live timer" },
-            new Option<bool>("--reset-pieces", "-rp") { Description = "Reset ALL pieces on door entry" },
-            new Option<bool>("--high-precision", "-hp") { Description = "Increases system timer resolution" },
+            new Option<bool>("--restore-pieces", "-r") { Description = "Restore puzzle pieces on level exit" },
+            new Option<bool>("--high-precision", "-h") { Description = "Increases system timer resolution" },
         }
         .SetBraidGameAction((braidGame, parseResult) =>
         {
             var world = parseResult.GetValue<int?>("--world");
             var level = parseResult.GetValue<int?>("--level");
             var live = parseResult.GetValue<bool>("--live");
-            var resetPieces = parseResult.GetValue<bool>("--reset-pieces");
+            var restorePieces = parseResult.GetValue<bool>("--restore-pieces");
             var highPrecision = parseResult.GetValue<bool>("--high-precision");
             var cancel = false;
 
@@ -29,7 +28,7 @@ internal static partial class Commands
             using var _ = new ConsoleCancelAction(() => cancel = true);
 
             using var highPrecisionTimer = highPrecision ? new HighPrecisionTimer(10) : null;
-            var ilTimer = new IlTimer(braidGame, world, level, resetPieces, live);
+            var ilTimer = new IlTimer(braidGame, world, level, restorePieces, live);
 
             while (!cancel && braidGame.IsRunning)
                 SpinWait.SpinUntil(() => ilTimer.Tick(), 5);
@@ -43,8 +42,9 @@ internal class IlTimer
     private readonly BraidGame _braidGame;
     private readonly int? _onlyWorld;
     private readonly int? _onlyLevel;
-    private readonly bool _resetPieces;
+    private readonly bool _restorePieces;
     private readonly bool _liveTimer;
+    private readonly PuzzlePieceData[,] _puzzlePiecesSnapshot;
     private int _currentWorld;
     private int _currentLevel;
     private bool _stopped;
@@ -55,13 +55,14 @@ internal class IlTimer
     private const double _fps = 60.0;
     private double LevelSeconds => _levelFrameCount / _fps;
 
-    public IlTimer(BraidGame braidGame, int? onlyWorld = null, int? onlyLevel = null, bool resetPieces = false, bool liveTimer = false)
+    public IlTimer(BraidGame braidGame, int? onlyWorld = null, int? onlyLevel = null, bool restorePieces = false, bool liveTimer = false)
     {
         _braidGame = braidGame;
         _onlyWorld = onlyWorld;
         _onlyLevel = onlyLevel;
-        _resetPieces = resetPieces;
+        _restorePieces = restorePieces;
         _liveTimer = liveTimer;
+        _puzzlePiecesSnapshot = _restorePieces ? _braidGame.CurrentCampaignState.GetPuzzlePiecesSnapshot() : new PuzzlePieceData[0, 0];
         Restart();
     }
 
@@ -97,8 +98,6 @@ internal class IlTimer
             //_levelFrameCount += frameDelta; // TODO: Timer is usually 1 frame too fast, but this doesn't seem to fix it...
             _hasMissedImportantFrames |= hasMissedFrames;
             return true;
-
-            // TODO: Stop timer if level has changed; restart when _braidGame.TimEnterLevel
         }
 
         // Early exit if timer is stopped
@@ -135,9 +134,9 @@ internal class IlTimer
                 ConsoleHelper.WriteWarning("Retiming needed due to dropped frames");
             Console.WriteLine();
 
-            // TODO: Maybe this should be moved to Restart() so reset also happens when F1 is pressed?
-            if (_resetPieces)
-                _braidGame.UsualCampaignState.ResetPieces();
+            // TODO: This should be moved (e.g., to Restart) so reset also happens when timer is stopped/paused or F1 is pressed
+            if (_restorePieces)
+                _braidGame.CurrentCampaignState.RestorePuzzlePiecesFromSnapshot(_puzzlePiecesSnapshot);
         }
 
         return true;

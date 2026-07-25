@@ -24,7 +24,7 @@ braidkit entity-flag guy hidden true         // Make Tim invisible
 braidkit bg-full-speed                       // Toggle game running at full speed in background
 braidkit il-timer                            // Print level complete times on door entry
 braidkit il-timer --live                     // Additionally print live timer
-braidkit il-timer --reset-pieces             // Additionally reset all puzzle pieces on level entry
+braidkit il-timer --restore-pieces           // Additionally restore puzzle pieces on level exit
 braidkit reset-pieces                        // Resets all puzzle pieces on current save
 braidkit debug-info                          // Toggle in-game debug info
 braidkit render-overlay                      // Render in-game debug overlay, e.g., colliders

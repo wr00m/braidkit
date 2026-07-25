@@ -9,9 +9,28 @@ public class CampaignState(ProcessMemoryHandler _processMemoryHandler, IntPtr _a
 
     public int CountAcquiredPuzzlePieces() => EnumeratePuzzlePieceAcquiredAddrs().Sum(addr => _processMemoryHandler.Read<bool>(addr) ? 1 : 0);
 
-    public void ResetPieces()
+    public PuzzlePieceData[,] GetPuzzlePiecesSnapshot()
     {
-        // Note: Pieces in current level don't reset, but maybe that's good since we don't want to reset pieces during level fadeout
+        var result = new PuzzlePieceData[_puzzleWorldCount, _pieceCountPerPuzzle];
+        for (int world = 0; world < _puzzleWorldCount; world++)
+            for (int piece = 0; piece < _pieceCountPerPuzzle; piece++)
+                result[world, piece] = _processMemoryHandler.Read<PuzzlePieceData>(GetPuzzlePieceAddr(world, piece));
+        return result;
+    }
+
+    public void RestorePuzzlePiecesFromSnapshot(PuzzlePieceData[,] snapshot)
+    {
+        if (snapshot.GetLength(0) != _puzzleWorldCount || snapshot.GetLength(1) != _pieceCountPerPuzzle)
+            throw new ArgumentException("Invalid puzzle piece data array length", nameof(snapshot));
+
+        for (int world = 0; world < _puzzleWorldCount; world++)
+            for (int piece = 0; piece < _pieceCountPerPuzzle; piece++)
+                _processMemoryHandler.Write(GetPuzzlePieceAddr(world, piece), snapshot[world, piece]);
+    }
+
+    public void ResetPuzzlePieces()
+    {
+        // Note: Pieces in current level don't visually reset, which is good since we don't want to reset pieces during level fadeout
         foreach (var puzzlePieceAddr in EnumeratePuzzlePieceAcquiredAddrs())
             _processMemoryHandler.Write(puzzlePieceAddr, false);
     }
@@ -33,6 +52,6 @@ public class CampaignState(ProcessMemoryHandler _processMemoryHandler, IntPtr _a
     {
         for (int world = 0; world < _puzzleWorldCount; world++)
             for (int piece = 0; piece < _pieceCountPerPuzzle; piece++)
-                yield return GetPuzzlePieceAddr(world, piece);
+                yield return GetPuzzlePieceAddr(world, piece); // "Acquired" field has offset 0x0
     }
 }
