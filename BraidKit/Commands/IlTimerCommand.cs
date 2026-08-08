@@ -12,14 +12,17 @@ internal static partial class Commands
             new Option<int?>("--world", "-w") { Description = "Only use timer for this world" },
             new Option<int?>("--level", "-l") { Description = "Only use timer for this level" },
             new Option<bool>("--live", "-t") { Description = "Use live timer" },
-            new Option<bool>("--restore-pieces", "-r") { Description = "Restore puzzle pieces on level exit" },
-            new Option<bool>("--high-precision", "-h") { Description = "Increases system timer resolution" },
+            // TODO: Aliases should be single-letter
+            new Option<bool>("--reset-pieces", "-rp") { Description = "Reset ALL pieces on door entry" },
+            new Option<bool>("--restore-pieces", "-ri") { Description = "Restore puzzle pieces to initial state on level entry (useful for levels where puzzleboard is visible)" },
+            new Option<bool>("--high-precision", "-hp") { Description = "Increases system timer resolution" },
         }
         .SetBraidGameAction((braidGame, parseResult) =>
         {
             var world = parseResult.GetValue<int?>("--world");
             var level = parseResult.GetValue<int?>("--level");
             var live = parseResult.GetValue<bool>("--live");
+            var resetPieces = parseResult.GetValue<bool>("--reset-pieces");
             var restorePieces = parseResult.GetValue<bool>("--restore-pieces");
             var highPrecision = parseResult.GetValue<bool>("--high-precision");
             var cancel = false;
@@ -28,7 +31,9 @@ internal static partial class Commands
             using var _ = new ConsoleCancelAction(() => cancel = true);
 
             using var highPrecisionTimer = highPrecision ? new HighPrecisionTimer(10) : null;
-            var ilTimer = new IlTimer(braidGame, world, level, restorePieces, live);
+
+            var resetPiecesMode = restorePieces ? ResetPiecesMode.RestoreInitial : resetPieces ? ResetPiecesMode.Reset : ResetPiecesMode.Off;
+            var ilTimer = new IlTimer(braidGame, world, level, resetPiecesMode, live);
 
             while (!cancel && braidGame.IsRunning)
                 SpinWait.SpinUntil(() => ilTimer.Tick(), 5);
@@ -37,12 +42,19 @@ internal static partial class Commands
         });
 }
 
+internal enum ResetPiecesMode
+{
+    Off,
+    Reset,
+    RestoreInitial,
+}
+
 internal class IlTimer
 {
     private readonly BraidGame _braidGame;
     private readonly int? _onlyWorld;
     private readonly int? _onlyLevel;
-    private readonly bool _restorePieces;
+    private readonly ResetPiecesMode _resetPiecesMode;
     private readonly bool _liveTimer;
     private readonly PuzzlePieceData[,] _puzzlePiecesSnapshot;
     private int _currentWorld;
@@ -55,14 +67,14 @@ internal class IlTimer
     private const double _fps = 60.0;
     private double LevelSeconds => _levelFrameCount / _fps;
 
-    public IlTimer(BraidGame braidGame, int? onlyWorld = null, int? onlyLevel = null, bool restorePieces = false, bool liveTimer = false)
+    public IlTimer(BraidGame braidGame, int? onlyWorld = null, int? onlyLevel = null, ResetPiecesMode resetPiecesMode = ResetPiecesMode.Off, bool liveTimer = false)
     {
         _braidGame = braidGame;
         _onlyWorld = onlyWorld;
         _onlyLevel = onlyLevel;
-        _restorePieces = restorePieces;
+        _resetPiecesMode = resetPiecesMode;
         _liveTimer = liveTimer;
-        _puzzlePiecesSnapshot = _restorePieces ? _braidGame.CurrentCampaignState.GetPuzzlePiecesSnapshot() : new PuzzlePieceData[0, 0];
+        _puzzlePiecesSnapshot = resetPiecesMode is ResetPiecesMode.RestoreInitial ? _braidGame.CurrentCampaignState.GetPuzzlePiecesSnapshot() : new PuzzlePieceData[0, 0];
         Restart();
     }
 
@@ -134,9 +146,11 @@ internal class IlTimer
                 ConsoleHelper.WriteWarning("Retiming needed due to dropped frames");
             Console.WriteLine();
 
-            // TODO: This should be moved (e.g., to Restart) so reset also happens when timer is stopped/paused or F1 is pressed
-            if (_restorePieces)
+            // TODO: Reset/restore pieces should be moved (e.g., to Restart) so reset also happens when timer is stopped/paused or F1 is pressed
+            if (_resetPiecesMode is ResetPiecesMode.RestoreInitial)
                 _braidGame.CurrentCampaignState.RestorePuzzlePiecesFromSnapshot(_puzzlePiecesSnapshot);
+            else if (_resetPiecesMode is ResetPiecesMode.Reset)
+                _braidGame.CurrentCampaignState.ResetPuzzlePieces();
         }
 
         return true;
