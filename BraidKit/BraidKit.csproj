@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="InjectDotnet" Version="0.4.0" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta6.25358.103" />
+    <PackageReference Include="System.CommandLine" Version="2.0.10" />
   </ItemGroup>
 
   <ItemGroup>

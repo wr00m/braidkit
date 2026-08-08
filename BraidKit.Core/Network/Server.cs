@@ -279,7 +279,7 @@ public sealed class Server : IDisposable
         var hue = Random.Shared.GetRandomFloat(0f, 1f);
         var saturation = Random.Shared.GetRandomFloat(.6f, 1f);
         var lightness = Random.Shared.GetRandomFloat(.7f, .9f);
-        return Color4.FromHSL(hue, saturation, lightness);
+        return (Color)Color4.FromHSL(hue, saturation, lightness);
     }
 
     private static bool IsValidPlayerName(string name) => !string.IsNullOrWhiteSpace(name) && name.Length <= PacketConstants.PlayerNameMaxLength;
